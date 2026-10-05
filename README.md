@@ -22,7 +22,12 @@ Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life
 5. The whole logo lifts off the paper and floats, with a soft shadow and a burst of gold dust.
 6. Every few seconds a golden oil drop forms in the drop of the ORS "O", falls, and a gold glint sweeps across the letters.
 
-Tap to spin the logo 360°. Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js); rendering uses three.js.
+**Play with it**
+- **Olive buddies:** after the reveal the three olives open their eyes and smile; they blink and look around. Every so often one hops out and bounces across the tops of O‑L‑I‑V‑E, which squish as it lands.
+- **Musical letters:** tap a letter to make it jump and play a note, so O‑L‑I‑V‑E‑O‑I‑L is a little keyboard. Tap an olive and it giggles and flips. Tap the red pill for an oil drop, or tap anywhere else to spin the whole logo.
+- **Catch the oil (mini-game):** 25 seconds of golden drops raining from the ORS "O". Tap to catch them; bright bonus drops are worth +3, streaks build a combo, and a bottle fills as you score. It ends with olive-and-leaf confetti, a title and your best score (saved on the device). Tune it in `GAME` in `logo.js`.
+- **📸 Snap:** captures the camera view with the 3D logo and an ORS badge, ready to save or share.
+- **Sound:** pops, boings, drips and a chime, all synthesised in `sfx.js` (no audio files). Use 🔊 to mute. Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js); rendering uses three.js.
 
 **How the 3D logo is made.** The letters and pill are traced from the real artwork, so they keep the exact brand letterforms:
 
@@ -31,7 +36,7 @@ Tap to spin the logo 360°. Image tracking uses [MindAR](https://github.com/hiuk
 - The olive sprig is modelled in `logo.js` (`SPRIG`) to sit over the printed one.
 - `targets/logo.png` and `targets/logo.mind` are the tracking image and its compiled MindAR target.
 
-Edit the `BRAND` block in `logo.js` for the tagline, button text, shop link and colours. Add `?debug` to the URL to get `window.reveal` in the console (e.g. `reveal.age = 0` replays the reveal).
+Edit the `BRAND` block in `logo.js` for the tagline, button text, shop link and colours. Add `?debug` to the URL to get `window.reveal` and `window.game` in the console (e.g. `reveal.age = 0` replays the reveal, `reveal.startHop()` sends an olive hopping).
 
 ## Try it
 
@@ -53,7 +58,8 @@ python3 -m http.server 8000
 | `index.html` | Page layout and controls |
 | `style.css` | Styling |
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
-| `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience |
+| `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
+| `sfx.js` | Synthesised sound effects (Web Audio) |
 | `targets/` | Logo artwork, traced shapes and the MindAR tracking target |
 | `tools/vectorize_logo.py` | Traces the logo artwork into `targets/logo-shapes.json` |
 

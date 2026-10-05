@@ -39,14 +39,51 @@
     <p>Point at the ORS Olive Oil logo</p>
   </div>
 
+  <div id="topbar" hidden>
+    <button id="muteBtn" class="round" aria-label="Mute sound">🔊</button>
+    <button id="snapBtn" class="round" aria-label="Take a photo">📸</button>
+  </div>
+
+  <div id="hud" hidden>
+    <div class="hud-pill"><span class="hud-label">Caught</span> <b id="score">0</b></div>
+    <div id="combo" class="combo" hidden></div>
+    <div class="hud-pill"><b id="timer">25</b>s</div>
+    <div class="bottle" aria-hidden="true"><span id="bottleFill"></span></div>
+  </div>
+
   <footer id="cta" hidden>
     <p id="tagline" class="tagline"></p>
-    <p class="tap-tip">Tap to spin the logo</p>
+    <p class="tap-tip" id="tapTip">Tap the letters and olives!</p>
+    <button id="playBtn" class="primary big">Play: Catch the oil</button>
     <div class="row">
-      <a id="shopBtn" class="primary" target="_blank" rel="noopener">Shop now</a>
+      <a id="shopBtn" class="ghost" target="_blank" rel="noopener">Shop now</a>
       <a class="ghost" href="./">Olive selfie</a>
     </div>
   </footer>
+
+  <section id="result" class="sheet" hidden>
+    <div class="card">
+      <p class="result-kicker">Time's up!</p>
+      <h2 id="resultTitle">Olive oil master!</h2>
+      <p class="result-score"><b id="resultScore">0</b> drops caught</p>
+      <p class="small" id="resultBest"></p>
+      <div class="col">
+        <button id="againBtn" class="primary">Play again</button>
+        <button id="resultSnapBtn" class="ghost">📸 Snap a photo</button>
+        <button id="resultCloseBtn" class="link-btn">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="photo" class="sheet" hidden>
+    <img id="photoImg" alt="Your AR photo" />
+    <div class="row">
+      <button id="photoSaveBtn" class="primary">Save / share</button>
+      <button id="photoCloseBtn" class="ghost">Back</button>
+    </div>
+  </section>
+
+  <div id="flash" hidden></div>
 
   <script type="module" src="logo.js"></script>
 </body>

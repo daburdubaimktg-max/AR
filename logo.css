@@ -47,6 +47,52 @@ button, label { font: inherit; color: inherit; cursor: pointer; }
   padding: 12px 16px calc(env(safe-area-inset-bottom) + 18px); background: linear-gradient(transparent, rgba(0,0,0,.6));
   animation: rise .5s ease-out; }
 #cta .row { display: flex; gap: 12px; justify-content: center; }
+#cta .ghost { padding: 10px 18px; font-size: 14px; }
 .tagline { margin: 0 0 4px; font-size: 20px; font-weight: 700; letter-spacing: .3px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
 .tap-tip { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 @keyframes rise { from { transform: translateY(30px); opacity: 0; } }
+
+/* ---- fun layer ---- */
+#topbar { position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: 12px; z-index: 6; display: flex; gap: 8px; }
+.round { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: var(--glass);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 20px; padding: 0; }
+.round:active, .primary:active, .ghost:active { transform: scale(.95); }
+.primary.big { padding: 16px 30px; font-size: 17px; margin-bottom: 10px; box-shadow: 0 6px 20px rgba(165,31,54,.45); }
+#playBtn { animation: wiggle 2.4s ease-in-out infinite; }
+@keyframes wiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-3deg); } 90% { transform: rotate(3deg); } 95% { transform: rotate(-2deg); } }
+
+#hud { position: fixed; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 112px; z-index: 6;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hud-pill { background: var(--glass); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 8px 14px;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 15px; }
+.hud-pill b { font-size: 20px; color: #ffd75e; }
+.hud-label { font-size: 12px; color: var(--muted); }
+.bump { animation: bump .25s ease-out; }
+@keyframes bump { 50% { transform: scale(1.25); } }
+.combo { background: #ffd75e; color: #3a2a00; font-weight: 800; border-radius: 999px; padding: 6px 12px; font-size: 14px;
+  animation: bump .3s ease-out; }
+.bottle { width: 26px; height: 46px; border: 2px solid rgba(255,255,255,.85); border-radius: 8px 8px 10px 10px; position: relative;
+  overflow: hidden; background: rgba(0,0,0,.25); }
+.bottle::before { content: ""; position: absolute; top: -2px; left: 7px; width: 8px; height: 6px; background: #fff; border-radius: 2px; }
+.bottle span { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(#ffe27a, #e0a512);
+  transition: height .25s ease-out; }
+
+.sheet { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 24px; background: rgba(0,0,0,.55); animation: fade .25s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.card { background: #fffdf5; color: #1e2a16; border-radius: 28px; padding: 26px 22px 18px; width: min(340px, 100%); text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4); animation: pop .35s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
+.card h2 { margin: 4px 0 6px; font-size: 26px; color: var(--red); }
+.result-kicker { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: #6b7b5e; }
+.result-score { margin: 0 0 4px; font-size: 18px; }
+.result-score b { font-size: 44px; color: #1e5631; display: block; line-height: 1.1; }
+.card .small { color: #6b7b5e; margin: 0 0 14px; }
+.col { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.card .ghost { color: #1e2a16; background: #eef2e6; border-color: #d6dfc8; }
+.link-btn { background: none; border: 0; color: #6b7b5e; padding: 6px; text-decoration: underline; }
+
+#photo img { max-width: 100%; max-height: 72vh; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+#photo .row { display: flex; gap: 12px; }
+#flash { position: fixed; inset: 0; background: #fff; z-index: 30; pointer-events: none; animation: flash .35s ease-out forwards; }
+@keyframes flash { to { opacity: 0; } }

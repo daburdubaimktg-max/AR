@@ -6,6 +6,7 @@
 // extruded here; the olive sprig is modelled to sit over the printed one.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -21,6 +22,17 @@ const BRAND = {
     green: 0x1e5631, red: 0xa51f36, white: 0xffffff, olive: 0x9cb83a,
     leaf: 0x3d6b2a, stem: 0x7d8a3c, gold: 0xf0b323,
   },
+};
+
+// Catch-the-oil game.
+const GAME = {
+  seconds: 25,
+  titles: [ // [min score, title]
+    [25, "Olive oil master!"],
+    [15, "Well oiled!"],
+    [8, "Smooth moves!"],
+    [0, "Nice start!"],
+  ],
 };
 
 // logo.png is 708 x 570 px. Logo units: width 1, origin at the centre, y up.
@@ -61,6 +73,9 @@ function init() {
   $("shopBtn").textContent = BRAND.ctaText;
   $("shopBtn").href = BRAND.ctaUrl;
   $("startBtn").onclick = start;
+  const syncMute = () => { $("muteBtn").textContent = isMuted() ? "🔇" : "🔊"; };
+  syncMute();
+  $("muteBtn").onclick = () => { setMuted(!isMuted()); syncMute(); };
 }
 
 function showError(msg) {
@@ -72,6 +87,7 @@ function showError(msg) {
 }
 
 async function start() {
+  unlock(); // audio needs a user gesture on iOS
   $("startBtn").hidden = true;
   $("setupError").hidden = true;
   $("progress").hidden = false;
@@ -108,21 +124,37 @@ async function start() {
   scene.add(key);
 
   const anchor = mindar.addAnchor(0);
-  const show = new LogoReveal(shapes);
+  const show = new LogoReveal(shapes, camera);
+  const game = new DropGame(show);
   anchor.group.add(show.root);
-  if (new URLSearchParams(location.search).has("debug")) window.reveal = show;
+  if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { reveal: show, game });
 
   anchor.onTargetFound = () => {
     show.found();
     $("hint").hidden = true;
-    $("cta").hidden = false;
+    if (!game.running) $("cta").hidden = false;
     if (navigator.vibrate) navigator.vibrate(25);
   };
   anchor.onTargetLost = () => {
     show.lost();
     $("hint").hidden = false;
   };
-  $("ar").addEventListener("pointerdown", () => show.tap());
+
+  $("ar").addEventListener("pointerdown", (e) => {
+    const rect = $("ar").getBoundingClientRect();
+    const p = { x: e.clientX - rect.left, y: e.clientY - rect.top, w: rect.width, h: rect.height };
+    if (game.running) game.tap(p);
+    else show.tap(p);
+  });
+
+  $("playBtn").onclick = () => { unlock(); game.start(); };
+  $("againBtn").onclick = () => { $("result").hidden = true; game.start(); };
+  $("resultCloseBtn").onclick = () => { $("result").hidden = true; $("cta").hidden = false; };
+  const snap = () => snapPhoto(mindar);
+  $("snapBtn").onclick = snap;
+  $("resultSnapBtn").onclick = () => { $("result").hidden = true; $("cta").hidden = false; setTimeout(snap, 150); };
+  $("photoCloseBtn").onclick = () => { $("photo").hidden = true; };
+  $("photoSaveBtn").onclick = savePhoto;
 
   try {
     await mindar.start();
@@ -135,12 +167,87 @@ async function start() {
   }
   $("setup").hidden = true;
   $("hint").hidden = false;
+  $("topbar").hidden = false;
 
   const clock = new THREE.Clock();
   renderer.setAnimationLoop(() => {
-    show.update(Math.min(clock.getDelta(), 0.05), clock.elapsedTime);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    game.update(dt);
+    show.update(dt, clock.elapsedTime);
     renderer.render(scene, camera);
   });
+}
+
+// ---------- Photo ----------
+
+let photoBlob = null;
+
+async function snapPhoto({ renderer, scene, camera }) {
+  const container = $("ar");
+  const W = container.clientWidth, H = container.clientHeight;
+  const dpr = renderer.getPixelRatio();
+  const out = document.createElement("canvas");
+  out.width = Math.round(W * dpr);
+  out.height = Math.round(H * dpr);
+  const g = out.getContext("2d");
+
+  // Camera image, positioned exactly as MindAR shows it.
+  const video = container.querySelector("video");
+  if (video && video.videoWidth) {
+    let x = parseFloat(video.style.left), y = parseFloat(video.style.top);
+    let w = parseFloat(video.style.width), h = parseFloat(video.style.height);
+    if (!(w > 0 && h > 0)) { // fall back to "cover"
+      const s = Math.max(W / video.videoWidth, H / video.videoHeight);
+      w = video.videoWidth * s; h = video.videoHeight * s; x = (W - w) / 2; y = (H - h) / 2;
+    }
+    g.drawImage(video, (x || 0) * dpr, (y || 0) * dpr, w * dpr, h * dpr);
+  }
+  renderer.render(scene, camera); // render now so the WebGL buffer is fresh
+  g.drawImage(renderer.domElement, 0, 0, out.width, out.height);
+
+  // Small branded badge.
+  try {
+    const logo = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = "targets/logo.png";
+    });
+    const bw = out.width * 0.22, bh = (bw * logo.height) / logo.width, pad = out.width * 0.03;
+    g.fillStyle = "rgba(255,255,255,.92)";
+    g.beginPath();
+    g.roundRect(pad, out.height - bh - pad * 2.4, bw + pad, bh + pad, pad * 0.6);
+    g.fill();
+    g.drawImage(logo, pad * 1.5, out.height - bh - pad * 1.9, bw, bh);
+  } catch { /* badge is optional */ }
+
+  sfx.shutter();
+  const flash = $("flash");
+  flash.hidden = false;
+  flash.style.animation = "none";
+  void flash.offsetWidth;
+  flash.style.animation = "";
+  setTimeout(() => { flash.hidden = true; }, 400);
+
+  out.toBlob((blob) => {
+    photoBlob = blob;
+    $("photoImg").src = URL.createObjectURL(blob);
+    $("photo").hidden = false;
+  }, "image/jpeg", 0.92);
+}
+
+async function savePhoto() {
+  if (!photoBlob) return;
+  const file = new File([photoBlob], `ors-olive-oil-ar-${Date.now()}.jpg`, { type: "image/jpeg" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: BRAND.name }); return; } catch (err) {
+      if (err.name === "AbortError") return;
+    }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  a.click();
 }
 
 // ---------- Helpers ----------
@@ -149,6 +256,7 @@ const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const smooth = (t) => { t = clamp01(t); return t * t * (3 - 2 * t); };
 const easeOutBack = (t) => { t = clamp01(t); return 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2); };
 const easeInOut = (t) => { t = clamp01(t); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+const rand = (a, b) => a + Math.random() * (b - a);
 
 // Traced polygons (logo px) -> THREE.Shapes relative to `centre` (logo units).
 function toShapes(polys, centre) {
@@ -174,9 +282,11 @@ function extrude(polys, material, depth, bevel) {
     bevelOffset: -bevel * 0.8, bevelSegments: 4, curveSegments: 6,
   });
   geo.translate(0, 0, bevel);
+  geo.computeBoundingBox();
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(centre.x, centre.y, 0);
   mesh.userData.depth = depth + bevel * 2;
+  mesh.userData.baseY = centre.y;
   return mesh;
 }
 
@@ -258,25 +368,67 @@ function tube(points, radius, material) {
   return mesh;
 }
 
+// A cartoon face for an olive (unit-sphere space, facing +z).
+function makeFace() {
+  const face = new THREE.Group();
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.15 });
+  const pink = new THREE.MeshBasicMaterial({ color: 0xff8fa3, transparent: true, opacity: 0.55 });
+  const eyes = [];
+  const pupils = [];
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Group();
+    eye.position.set(side * 0.3, 0.2, 0.9);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.21, 20, 14), white);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), black);
+    pupil.position.z = 0.13;
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), white);
+    glint.position.set(0.04, 0.05, 0.11);
+    pupil.add(glint);
+    eye.add(ball, pupil);
+    face.add(eye);
+    eyes.push(eye);
+    pupils.push(pupil);
+    const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.11, 16), pink);
+    cheek.position.set(side * 0.52, -0.12, 0.86);
+    cheek.rotation.y = side * 0.55;
+    face.add(cheek);
+  }
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.04, 8, 20, Math.PI), black);
+  mouth.rotation.z = Math.PI; // lower half of the ring = a smile
+  mouth.position.set(0, -0.1, 0.97);
+  face.add(mouth);
+  face.userData = { eyes, pupils, mouth };
+  face.scale.setScalar(0.001);
+  return face;
+}
+
 // ---------- The reveal ----------
 // Timeline (seconds after the logo is found):
 //   0.0  gold light sweeps across the printed logo
 //   0.35 red pill extrudes out of the paper, white ORS presses out of it
-//   0.55 O-L-I-V-E-O-I-L rise one by one with a hop
+//   0.55 O-L-I-V-E-O-I-L rise one by one with a hop (each with a note)
 //   1.1  stems grow, olives inflate from the print, leaves unfurl
 //   1.7  the whole logo lifts off the paper and floats, gold dust bursts
-//   3.2+ a gold oil drop forms in the ORS "O", falls past the logo, and a gold glint sweeps the letters
+//   2.6  the olives open their eyes and smile
+//   3.2+ a gold oil drop forms in the ORS "O", falls past the logo, a gold glint sweeps the letters
+//   7+   an olive hops out and bounces across the tops of O-L-I-V-E, then home
+// Tap a letter to play it, an olive to make it flip, anywhere else to spin the logo.
 
 class LogoReveal {
-  constructor(shapes) {
+  constructor(shapes, camera) {
+    this.camera = camera;
     this.root = new THREE.Group();
     this.age = 0;
+    this.prevAge = 0;
     this.active = false;
     this.lostFor = 99;
     this.nextDrop = 0;
+    this.nextHop = 0;
     this.spin = null;
     this.shimmerX = null;
     this.dropState = null;
+    this.gameMode = false;
 
     // Paper-coloured cover that hides the flat print once the 3D one rises.
     this.cover = new THREE.Mesh(
@@ -353,6 +505,7 @@ class LogoReveal {
       this.logo.add(m);
       return m;
     });
+    this.letterFx = this.letters.map(() => ({ jump: 0, dip: 0 }));
     this.tm = extrude(shapes.tm, glossy(BRAND.colors.green), 0.006, 0.002);
     this.logo.add(this.tm);
 
@@ -374,12 +527,20 @@ class LogoReveal {
       m.position.set(c.x, c.y, depth + o.z);
       m.rotation.z = THREE.MathUtils.degToRad(o.tilt);
       m.userData.r = new THREE.Vector3(o.r[0] * U, o.r[1] * U, depth);
+      const face = makeFace();
+      m.add(face);
       this.sprig.add(m);
       return m;
     });
+    this.oliveFx = this.olives.map((m, i) => ({
+      home: m.position.clone(), tilt: m.rotation.z, face: m.children[0],
+      flip: 0, squash: 0, hop: null, blinkAt: 3 + i, look: 0,
+    }));
     const leafMat = new THREE.MeshPhysicalMaterial({
       color: BRAND.colors.leaf, roughness: 0.45, clearcoat: 0.6, side: THREE.DoubleSide,
     });
+    this.leafGeo = leafGeometry(1, 0.38);
+    this.leafMat = leafMat;
     this.leaves = SPRIG.leaves.map((l) => {
       const a = px(...l.from), b = px(...l.to);
       const pivot = new THREE.Group();
@@ -397,16 +558,20 @@ class LogoReveal {
       const t = i / 20;
       pts.push(new THREE.Vector2(Math.sin(t * Math.PI) * (1 - t * 0.72) * 0.5, -Math.cos(t * Math.PI) * 0.5 + 0.5));
     }
-    const dropGeo = new THREE.LatheGeometry(pts, 32);
-    dropGeo.translate(0, -0.5, 0);
-    this.drop = new THREE.Mesh(dropGeo, glossy(BRAND.colors.gold, {
+    this.dropGeo = new THREE.LatheGeometry(pts, 32);
+    this.dropGeo.translate(0, -0.5, 0);
+    this.goldMat = glossy(BRAND.colors.gold, {
       metalness: 0.6, roughness: 0.1, emissive: 0x6a4000, emissiveIntensity: 0.8, envMapIntensity: 1.2,
-    }));
+    });
+    this.bonusMat = glossy(0xffd84a, {
+      metalness: 0.7, roughness: 0.05, emissive: 0xffa800, emissiveIntensity: 1.2, envMapIntensity: 1.5,
+    });
+    this.drop = new THREE.Mesh(this.dropGeo, this.goldMat);
     this.drop.visible = false;
     this.logo.add(this.drop);
 
     // Gold dust.
-    const N = 140;
+    const N = 220;
     this.dust = Array.from({ length: N }, () => ({ life: 1, max: 1, p: new THREE.Vector3(), v: new THREE.Vector3() }));
     this.dustGeo = new THREE.BufferGeometry();
     this.dustGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 3), 3));
@@ -416,13 +581,25 @@ class LogoReveal {
     }));
     this.root.add(this.dustPoints);
 
+    // Confetti (olives, leaves, gold and red flakes).
+    this.confetti = [];
+    this.confettiMats = [
+      new THREE.MeshStandardMaterial({ color: BRAND.colors.gold, metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide }),
+      new THREE.MeshStandardMaterial({ color: BRAND.colors.red, roughness: 0.4, side: THREE.DoubleSide }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, side: THREE.DoubleSide }),
+    ];
+    this.flakeGeo = new THREE.PlaneGeometry(0.03, 0.018);
+    this.miniOliveGeo = new THREE.SphereGeometry(0.018, 14, 10).scale(1, 1.25, 1);
+
     this.apply(0, 0);
   }
 
   found() {
     if (this.lostFor > 2.5) { // replay the reveal after a real absence
       this.age = 0;
+      this.prevAge = 0;
       this.nextDrop = 3.2;
+      this.nextHop = 7;
     }
     this.active = true;
   }
@@ -432,11 +609,84 @@ class LogoReveal {
     this.lostFor = 0;
   }
 
-  tap() {
-    if (!this.active || this.age < 2.4) return;
-    if (!this.spin) this.spin = { t: 0 };
+  get ready() { return this.active && this.age > 2.4; }
+
+  // Screen position (px) and on-screen radius of an object, for forgiving taps.
+  screenOf(obj, radius) {
+    const c = obj.getWorldPosition(new THREE.Vector3());
+    const e = obj.localToWorld(new THREE.Vector3(radius, 0, 0));
+    const toPx = (v) => { v.project(this.camera); return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 }; };
+    return { c: toPx(c), e: toPx(e) };
+  }
+
+  pick(p, candidates) {
+    let best = null, bestD = Infinity;
+    for (const { obj, radius, data } of candidates) {
+      if (!obj.visible) continue;
+      const { c, e } = this.screenOf(obj, radius);
+      const cx = c.x * p.w, cy = c.y * p.h;
+      const r = Math.max(Math.hypot((e.x - c.x) * p.w, (e.y - c.y) * p.h) * 1.15, 30);
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d < r && d / r < bestD) { best = data; bestD = d / r; }
+    }
+    return best;
+  }
+
+  tap(p) {
+    if (!this.ready) return;
+    const hit = this.pick(p, [
+      ...this.olives.map((obj, i) => ({ obj, radius: 1.1, data: { olive: i } })),
+      ...this.letters.map((obj, i) => {
+        const b = obj.geometry.boundingBox;
+        return { obj, radius: Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.55, data: { letter: i } };
+      }),
+      { obj: this.pill, radius: 0.33, data: { pill: true } },
+    ]);
+    if (hit && hit.olive !== undefined) this.pokeOlive(hit.olive);
+    else if (hit && hit.letter !== undefined) this.jumpLetter(hit.letter);
+    else if (hit && hit.pill) { this.startDrop(); sfx.bloop(2); }
+    else this.spinLogo();
+  }
+
+  spinLogo() {
+    if (this.spin) return;
+    this.spin = { t: 0 };
+    sfx.whoosh();
     this.startDrop();
     this.emitDust(30, new THREE.Vector3(0, 0, 0.1), 0.6);
+  }
+
+  jumpLetter(i) {
+    this.letterFx[i].jump = 1;
+    sfx.letter(i);
+    this.emitDust(8, this.toRoot(this.letters[i]), 0.08);
+  }
+
+  pokeOlive(i) {
+    const fx = this.oliveFx[i];
+    if (fx.hop) return;
+    fx.flip = 1;
+    fx.squash = 1;
+    sfx.giggle();
+    this.emitDust(10, this.toRoot(this.olives[i]), 0.06);
+  }
+
+  cheer() {
+    this.oliveFx.forEach((fx, i) => { if (!fx.hop) { fx.squash = 1; fx.flip = i === 1 ? 1 : fx.flip; } });
+  }
+
+  // An olive bounces across the tops of O-L-I-V-E and back home.
+  startHop(i = 0) {
+    const fx = this.oliveFx[i];
+    if (fx.hop || fx.flip) return;
+    const r = this.olives[i].userData.r;
+    const stops = [4, 3, 2, 1, 0].map((li) => {
+      const L = this.letters[li];
+      const top = L.userData.baseY + L.geometry.boundingBox.max.y;
+      return { pos: new THREE.Vector3(L.position.x, top + r.y * 0.9, L.userData.depth * 0.6), letter: li };
+    });
+    stops.push({ pos: fx.home.clone(), letter: null });
+    fx.hop = { from: this.olives[i].position.clone(), stops, seg: 0, t: 0 };
   }
 
   startDrop() {
@@ -445,25 +695,68 @@ class LogoReveal {
     this.dropState = { phase: "form", t: 0, x: at.x, y: at.y, vy: 0 };
   }
 
-  emitDust(n, at, spread) {
+  // Position of an object in root space (where dust/confetti live).
+  toRoot(obj) {
+    return this.root.worldToLocal(obj.getWorldPosition(new THREE.Vector3()));
+  }
+
+  emitDust(n, at, spread, speed = 1) {
     for (const d of this.dust) {
       if (n <= 0) break;
       if (d.life < d.max) continue;
       d.life = 0;
-      d.max = 0.8 + Math.random() * 0.8;
+      d.max = 0.6 + Math.random() * 0.8;
       d.p.set(at.x + (Math.random() - 0.5) * spread, at.y + (Math.random() - 0.5) * spread * ASPECT, at.z);
-      d.v.set((Math.random() - 0.5) * 0.4, Math.random() * 0.35 + 0.05, Math.random() * 0.3);
+      d.v.set((Math.random() - 0.5) * 0.4 * speed, (Math.random() * 0.35 + 0.05) * speed, Math.random() * 0.3 * speed);
       n--;
     }
+  }
+
+  celebrate(n = 90) {
+    for (let i = 0; i < n; i++) {
+      const kind = Math.random();
+      let mesh;
+      if (kind < 0.22) {
+        mesh = new THREE.Mesh(this.miniOliveGeo, this.olives[0].material);
+      } else if (kind < 0.42) {
+        mesh = new THREE.Mesh(this.leafGeo, this.leafMat);
+        mesh.scale.setScalar(0.07);
+      } else {
+        mesh = new THREE.Mesh(this.flakeGeo, this.confettiMats[Math.floor(Math.random() * 3)]);
+      }
+      mesh.position.set(rand(-0.7, 0.7), ASPECT / 2 + rand(0.1, 0.9), rand(0.05, 0.35));
+      mesh.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6));
+      this.root.add(mesh);
+      this.confetti.push({
+        mesh, life: 0, max: rand(2.5, 4),
+        v: new THREE.Vector3(rand(-0.15, 0.15), rand(-0.25, 0), rand(-0.05, 0.1)),
+        spin: new THREE.Vector3(rand(-6, 6), rand(-6, 6), rand(-6, 6)),
+      });
+    }
+    this.cheer();
   }
 
   update(dt, time) {
     if (this.active) this.age += dt;
     else this.lostFor += dt;
     this.apply(this.age, time, dt);
+    this.prevAge = this.age;
+  }
+
+  // Fire `fn` once when the timeline crosses `t`.
+  cue(t, fn) {
+    if (this.active && this.prevAge < t && this.age >= t) fn();
   }
 
   apply(a, time, dt = 0) {
+    // Sound cues for the reveal.
+    this.cue(0.02, () => sfx.whoosh());
+    this.cue(0.35, () => sfx.bloop(0));
+    this.letters.forEach((_, i) => this.cue(0.55 + i * 0.09, () => sfx.pop(i)));
+    this.olives.forEach((_, i) => this.cue(1.25 + i * 0.12, () => sfx.bloop(i + 1)));
+    this.cue(1.7, () => sfx.chime());
+    this.cue(2.9, () => sfx.giggle());
+
     // 1. Light sweep over the printed logo.
     const sw = clamp01(a / 0.7);
     this.sweep.position.x = -0.6 + 1.2 * sw;
@@ -489,6 +782,28 @@ class LogoReveal {
       const start = 0.55 + i * 0.09;
       grow(m, start, 0.45);
       m.position.z = 0.05 * Math.sin(Math.PI * clamp01((a - start) / 0.55)); // a little hop
+      // Tap jump / landing dip.
+      const fx = this.letterFx[i];
+      let y = 0, sx = 1, sy = 1, rot = 0;
+      if (fx.jump > 0) {
+        fx.jump = Math.max(0, fx.jump - dt / 0.6);
+        const t = 1 - fx.jump;
+        y = Math.sin(Math.PI * t) * 0.07;
+        rot = Math.sin(Math.PI * 2 * t) * 0.18;
+        const s = Math.sin(Math.PI * t) * 0.12;
+        sx = 1 - s * 0.5; sy = 1 + s;
+      }
+      if (fx.dip > 0) {
+        fx.dip = Math.max(0, fx.dip - dt / 0.35);
+        const s = Math.sin(Math.PI * (1 - fx.dip));
+        y -= s * 0.015;
+        sy *= 1 - s * 0.15;
+        sx *= 1 + s * 0.06;
+      }
+      m.position.y = m.userData.baseY + y;
+      m.rotation.z = rot;
+      m.scale.x = sx;
+      m.scale.y = sy;
     });
     grow(this.tm, 1.3, 0.3);
 
@@ -497,13 +812,7 @@ class LogoReveal {
       const k = clamp01((a - 1.1 - i * 0.08) / 0.4);
       s.geometry.setDrawRange(0, Math.floor((s.userData.count * k) / 3) * 3);
     });
-    this.olives.forEach((m, i) => {
-      const k = easeOutBack((a - 1.25 - i * 0.12) / 0.55);
-      const r = m.userData.r;
-      const breathe = 1 + Math.sin(time * 2 + i) * 0.012 * clamp01(a - 2);
-      m.scale.set(r.x * breathe, r.y * breathe, Math.max(0.0005, r.z * k));
-      m.visible = a > 1.25 + i * 0.12;
-    });
+    this.olives.forEach((m, i) => this.updateOlive(m, i, a, time, dt));
     this.leaves.forEach((l, i) => {
       const k = easeOutBack((a - 1.5 - i * 0.1) / 0.5);
       l.pivot.scale.setScalar(Math.max(0.001, k));
@@ -520,17 +829,24 @@ class LogoReveal {
       spinY = easeInOut(this.spin.t) * Math.PI * 2;
       if (this.spin.t >= 1) this.spin = null;
     }
-    this.logo.rotation.x = Math.sin(time * 0.7) * 0.07 * lift;
-    this.logo.rotation.y = Math.sin(time * 0.5) * 0.1 * lift + spinY;
+    const sway = this.gameMode ? 0.4 : 1; // calmer during the game
+    this.logo.rotation.x = Math.sin(time * 0.7) * 0.07 * lift * sway;
+    this.logo.rotation.y = Math.sin(time * 0.5) * 0.1 * lift * sway + spinY;
     this.shadow.material.opacity = 0.28 * lift;
     this.shadow.position.set(0.012 * lift, -0.02 * lift, 0.001);
     this.shadow.scale.setScalar(1 + 0.04 * lift + float);
-    if (a > 1.7 && a - dt <= 1.7) this.emitDust(70, new THREE.Vector3(0, 0, 0.08), 1.1);
+    this.cue(1.7, () => this.emitDust(70, new THREE.Vector3(0, 0, 0.08), 1.1));
 
-    // 6. The oil drop loop + gold shimmer across the letters.
-    if (this.active && a > this.nextDrop) {
-      this.startDrop();
-      this.nextDrop = a + 4.5;
+    // 6. Idle loop: drop + glint, olive hops.
+    if (this.active && !this.gameMode) {
+      if (a > this.nextDrop) {
+        this.startDrop();
+        this.nextDrop = a + 5.5;
+      }
+      if (a > this.nextHop) {
+        this.startHop(0);
+        this.nextHop = a + 13;
+      }
     }
     this.updateDrop(dt);
     this.letters.forEach((m) => {
@@ -542,19 +858,80 @@ class LogoReveal {
       if (this.shimmerX > 0.8) this.shimmerX = null;
     }
 
-    // Gold dust.
-    const pos = this.dustGeo.attributes.position.array;
-    this.dust.forEach((d, i) => {
-      if (d.life < d.max) {
-        d.life += dt;
-        d.v.y -= 0.15 * dt;
-        d.p.addScaledVector(d.v, dt);
-        pos.set([d.p.x, d.p.y, d.p.z], i * 3);
-      } else {
-        pos.set([0, 0, -10], i * 3);
+    this.updateParticles(dt);
+  }
+
+  updateOlive(m, i, a, time, dt) {
+    const fx = this.oliveFx[i];
+    const r = m.userData.r;
+    const k = easeOutBack((a - 1.25 - i * 0.12) / 0.55);
+    const breathe = 1 + Math.sin(time * 2 + i) * 0.015 * clamp01(a - 2);
+    let sx = 1, sy = 1;
+    if (fx.squash > 0) {
+      fx.squash = Math.max(0, fx.squash - dt * 3.5);
+      const s = Math.sin(fx.squash * Math.PI) * 0.22;
+      sx = 1 + s; sy = 1 - s;
+    }
+    m.scale.set(r.x * breathe * sx, r.y * breathe * sy, Math.max(0.0005, r.z * k));
+    m.visible = a > 1.25 + i * 0.12;
+
+    // Flip (tapped / cheering).
+    let rotY = fx.look;
+    if (fx.flip > 0) {
+      fx.flip = Math.max(0, fx.flip - dt / 0.7);
+      rotY = easeInOut(1 - fx.flip) * Math.PI * 2;
+    }
+
+    // Hopping across the letters.
+    if (fx.hop) {
+      const h = fx.hop;
+      const stop = h.stops[h.seg];
+      const last = h.seg === h.stops.length - 1;
+      h.t += dt / (last ? 0.7 : 0.42);
+      const t = clamp01(h.t);
+      m.position.lerpVectors(h.from, stop.pos, t);
+      m.position.y += Math.sin(Math.PI * t) * (last ? 0.16 : 0.08);
+      m.position.z += Math.sin(Math.PI * t) * 0.05;
+      m.rotation.z = fx.tilt * (1 - t) + Math.sin(Math.PI * t) * (last ? 1.2 : 0.4);
+      fx.look = stop.pos.x < h.from.x ? -0.5 : 0.5;
+      rotY = fx.look;
+      if (h.t >= 1) {
+        fx.squash = 1;
+        if (stop.letter !== null) {
+          this.letterFx[stop.letter].dip = 1;
+          sfx.boing(h.seg);
+          this.emitDust(5, this.toRoot(m), 0.04, 0.4);
+        } else {
+          sfx.giggle();
+        }
+        h.from = stop.pos.clone();
+        h.seg++;
+        h.t = 0;
+        if (h.seg >= h.stops.length) {
+          fx.hop = null;
+          fx.look = 0;
+          m.position.copy(fx.home);
+          m.rotation.z = fx.tilt;
+        }
       }
-    });
-    this.dustGeo.attributes.position.needsUpdate = true;
+    } else {
+      m.position.copy(fx.home);
+      m.position.z += Math.sin(time * 2.4 + i * 1.7) * 0.004 * clamp01(a - 2.6); // idle bob
+      fx.look *= 1 - Math.min(1, dt * 3);
+    }
+    m.rotation.y = rotY;
+
+    // Face: pops on at 2.6s, blinks, pupils wander.
+    const face = fx.face;
+    const fk = easeOutBack((a - 2.6 - i * 0.15) / 0.4);
+    face.scale.setScalar(Math.max(0.001, fk));
+    face.visible = fk > 0.01;
+    if (time > fx.blinkAt) fx.blinkAt = time + rand(2, 5);
+    const blink = fx.blinkAt - time < 0.12 ? 0.12 : 1;
+    face.userData.eyes.forEach((e) => { e.scale.y = blink; });
+    const lookX = Math.sin(time * 0.6 + i * 2) * 0.05 + fx.look * 0.08;
+    face.userData.pupils.forEach((p) => { p.position.x = lookX; p.position.y = Math.sin(time * 0.45 + i) * 0.03; });
+    face.userData.mouth.scale.set(1, fx.hop || fx.flip ? 1.5 : 1, 1); // big grin while playing
   }
 
   updateDrop(dt) {
@@ -578,12 +955,188 @@ class LogoReveal {
       const stretch = 1 + Math.min(0.6, -s.vy * 0.5);
       this.drop.scale.set(0.075 / Math.sqrt(stretch), 0.09 * stretch, 0.075 / Math.sqrt(stretch));
       if (this.drop.position.y < px(0, LAND_Y).y) {
-        this.emitDust(26, this.drop.position.clone(), 0.08);
+        sfx.drip();
+        this.emitDust(26, this.toRoot(this.drop), 0.08);
         this.shimmerX = -0.65;
         this.dropState = null;
         this.drop.visible = false;
       }
     }
+  }
+
+  updateParticles(dt) {
+    const pos = this.dustGeo.attributes.position.array;
+    this.dust.forEach((d, i) => {
+      if (d.life < d.max) {
+        d.life += dt;
+        d.v.y -= 0.15 * dt;
+        d.p.addScaledVector(d.v, dt);
+        pos.set([d.p.x, d.p.y, d.p.z], i * 3);
+      } else {
+        pos.set([0, 0, -10], i * 3);
+      }
+    });
+    this.dustGeo.attributes.position.needsUpdate = true;
+
+    for (let i = this.confetti.length - 1; i >= 0; i--) {
+      const c = this.confetti[i];
+      c.life += dt;
+      c.v.y -= 0.35 * dt;
+      c.v.multiplyScalar(1 - dt * 0.6); // air drag: flutter down
+      c.mesh.position.addScaledVector(c.v, dt);
+      c.mesh.position.x += Math.sin(c.life * 5 + i) * 0.002;
+      c.mesh.rotation.x += c.spin.x * dt;
+      c.mesh.rotation.y += c.spin.y * dt;
+      c.mesh.rotation.z += c.spin.z * dt;
+      if (c.life > c.max) {
+        this.root.remove(c.mesh);
+        this.confetti.splice(i, 1);
+      }
+    }
+  }
+}
+
+// ---------- Mini-game: catch the oil ----------
+
+class DropGame {
+  constructor(show) {
+    this.show = show;
+    this.running = false;
+    this.drops = [];
+    try { this.best = Number(localStorage.getItem("ors-ar-best")) || 0; } catch { this.best = 0; }
+  }
+
+  start() {
+    if (this.running) return;
+    const s = this.show;
+    if (!s.ready) { s.age = Math.max(s.age, 2.5); } // skip the reveal if needed
+    this.running = true;
+    this.score = 0;
+    this.combo = 0;
+    this.time = GAME.seconds;
+    this.elapsed = 0;
+    this.spawnIn = 0.6;
+    this.lastSecond = GAME.seconds;
+    s.gameMode = true;
+    $("cta").hidden = true;
+    $("hud").hidden = false;
+    $("combo").hidden = true;
+    this.renderHud();
+    sfx.chime();
+  }
+
+  renderHud(bump) {
+    $("score").textContent = this.score;
+    $("timer").textContent = Math.ceil(this.time);
+    $("bottleFill").style.height = `${Math.min(100, (this.score / 25) * 100)}%`;
+    if (bump) {
+      const el = $("score").parentElement;
+      el.classList.remove("bump");
+      void el.offsetWidth;
+      el.classList.add("bump");
+    }
+  }
+
+  spawn() {
+    const s = this.show;
+    const bonus = Math.random() < 0.13;
+    const mesh = new THREE.Mesh(s.dropGeo, bonus ? s.bonusMat : s.goldMat);
+    const size = bonus ? 0.1 : 0.07;
+    mesh.scale.set(size, size * 1.25, size);
+    mesh.position.set(rand(-0.42, 0.42), ASPECT / 2 + 0.12, rand(0.14, 0.2));
+    s.logo.add(mesh);
+    this.drops.push({ mesh, bonus, vy: -rand(0.05, 0.12), age: 0, size });
+  }
+
+  tap(p) {
+    const hit = this.show.pick(p, this.drops.map((d) => ({ obj: d.mesh, radius: 0.9, data: d })));
+    if (hit) this.caught(hit);
+    else { this.combo = 0; $("combo").hidden = true; }
+  }
+
+  caught(d) {
+    const s = this.show;
+    this.combo++;
+    this.score += d.bonus ? 3 : 1;
+    if (d.bonus) sfx.bonus(); else sfx.catch(this.combo);
+    if (navigator.vibrate) navigator.vibrate(12);
+    s.emitDust(d.bonus ? 30 : 14, s.toRoot(d.mesh), 0.05, d.bonus ? 1.4 : 0.9);
+    this.remove(d);
+    if (this.combo >= 3) {
+      $("combo").textContent = `${this.combo}× combo!`;
+      $("combo").hidden = false;
+      $("combo").style.animation = "none";
+      void $("combo").offsetWidth;
+      $("combo").style.animation = "";
+    }
+    if (this.combo % 5 === 0) s.cheer();
+    this.renderHud(true);
+  }
+
+  remove(d) {
+    this.show.logo.remove(d.mesh);
+    this.drops.splice(this.drops.indexOf(d), 1);
+  }
+
+  update(dt) {
+    if (!this.running || !this.show.active) return; // pause while the logo is out of view
+    this.elapsed += dt;
+    this.time -= dt;
+    const progress = clamp01(this.elapsed / GAME.seconds);
+
+    this.spawnIn -= dt;
+    if (this.spawnIn <= 0) {
+      this.spawn();
+      if (progress > 0.5 && Math.random() < 0.35) this.spawn(); // double drops later on
+      this.spawnIn = 0.85 - 0.4 * progress;
+    }
+
+    const bottom = -ASPECT / 2 - 0.1;
+    for (const d of [...this.drops]) {
+      d.age += dt;
+      d.vy -= (0.12 + 0.25 * progress) * dt;
+      d.mesh.position.y += d.vy * dt;
+      d.mesh.rotation.z = Math.sin(d.age * 6) * 0.15;
+      if (d.bonus) d.mesh.rotation.y += dt * 4;
+      if (d.mesh.position.y < bottom) {
+        sfx.splat();
+        this.show.emitDust(6, this.show.toRoot(d.mesh), 0.04, 0.3);
+        this.combo = 0;
+        $("combo").hidden = true;
+        this.remove(d);
+      }
+    }
+
+    const sec = Math.ceil(this.time);
+    if (sec !== this.lastSecond) {
+      this.lastSecond = sec;
+      if (sec <= 5 && sec > 0) sfx.tick();
+      this.renderHud();
+    }
+    if (this.time <= 0) this.end();
+  }
+
+  end() {
+    this.running = false;
+    for (const d of [...this.drops]) this.remove(d);
+    const s = this.show;
+    s.gameMode = false;
+    s.nextDrop = s.age + 4;
+    $("hud").hidden = true;
+
+    const newBest = this.score > this.best;
+    if (newBest) {
+      this.best = this.score;
+      try { localStorage.setItem("ors-ar-best", String(this.best)); } catch { /* ignore */ }
+    }
+    $("resultScore").textContent = this.score;
+    $("resultTitle").textContent = GAME.titles.find(([min]) => this.score >= min)[1];
+    $("resultBest").textContent = newBest && this.score > 0 ? "New personal best!" : `Your best: ${this.best}`;
+    $("result").hidden = false;
+
+    s.celebrate(this.score >= 15 ? 140 : 80);
+    s.spinLogo();
+    sfx.fanfare();
   }
 }
 
