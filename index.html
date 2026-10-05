@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0b0b10" />
+  <title>AR Stickers</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="canvas"></canvas>
+
+    <section id="start" class="overlay">
+      <h1>AR Stickers</h1>
+      <p>Put stickers on your face or anywhere in the scene. Stickers dropped on a face follow it as you move.</p>
+      <button id="startBtn" class="primary">Start camera</button>
+      <p id="startError" class="error" hidden></p>
+    </section>
+
+    <header id="topbar" hidden>
+      <span id="status">Loading face tracking…</span>
+      <div class="actions">
+        <button id="faceToggle" class="chip on" title="Stick new stickers to the face">Face lock: on</button>
+        <button id="flipBtn" class="icon" title="Switch camera">⟲</button>
+      </div>
+    </header>
+
+    <div id="selectionBar" hidden>
+      <button id="layerUpBtn" class="chip">Bring front</button>
+      <button id="anchorBtn" class="chip">Unlock from face</button>
+      <button id="deleteBtn" class="chip danger">Delete</button>
+    </div>
+
+    <footer id="bottombar" hidden>
+      <div id="tray" role="list"></div>
+      <div class="controls">
+        <label class="chip upload">
+          + Your sticker
+          <input id="upload" type="file" accept="image/*" hidden />
+        </label>
+        <button id="shutter" class="shutter" title="Take photo"></button>
+        <button id="clearBtn" class="chip">Clear all</button>
+      </div>
+    </footer>
+
+    <div id="preview" class="overlay" hidden>
+      <img id="previewImg" alt="Captured photo" />
+      <div class="row">
+        <button id="saveBtn" class="primary">Save / share</button>
+        <button id="closePreview" class="chip">Back</button>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
