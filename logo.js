@@ -14,8 +14,13 @@ const BRAND = {
   // Pre-built tracking target. If this file exists the app skips the
   // "choose logo image" step. Its width/height ratio goes in logoAspect.
   targetSrc: "targets/logo.mind",
-  logoAspect: 1,
-  colors: { gold: 0xe8b923, leaf: 0x6b8e23, leafDark: 0x4a6b1a, stem: 0x5d4a2a, olive: 0x3b4a1e },
+  logoAspect: 570 / 708,
+  colors: {
+    gold: 0xe8b923, red: "#a51f36", leaf: 0x3f7a2c, leafDark: 0x1e5631, stem: 0x5d4a2a, olive: 0x9cb83a,
+  },
+  // Spots on the logo, in logo units (width 1, origin at centre, y up).
+  dropSpot: { x: 258 / 708 - 0.5, y: (0.5 - 60 / 570) * (570 / 708) },   // the drop in the ORS "O"
+  oliveSpot: { x: 527 / 708 - 0.5, y: (0.5 - 410 / 570) * (570 / 708) }, // the olive sprig
 };
 
 const SAVED_KEY = "ors-ar-target-v1";
@@ -185,13 +190,16 @@ async function start(targetSrc, aspect) {
 const easeOutBack = (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 
-function radialTexture(inner, outer) {
+// A halo: clear in the middle (so the logo stays crisp), glowing around it.
+function haloTexture(color, clear) {
   const c = document.createElement("canvas");
   c.width = c.height = 128;
   const g = c.getContext("2d");
   const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grad.addColorStop(0, inner);
-  grad.addColorStop(1, outer);
+  grad.addColorStop(0, clear);
+  grad.addColorStop(0.58, clear);
+  grad.addColorStop(0.74, color);
+  grad.addColorStop(1, clear);
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
@@ -218,16 +226,16 @@ function textTexture(text) {
   c.width = 1024;
   c.height = 192;
   const g = c.getContext("2d");
-  g.fillStyle = "rgba(20,32,15,.72)";
+  g.fillStyle = BRAND.colors.red;
   const r = 96;
   g.beginPath();
   g.roundRect(8, 8, c.width - 16, c.height - 16, r);
   g.fill();
-  g.strokeStyle = "#e8b923";
+  g.strokeStyle = "rgba(255,255,255,.9)";
   g.lineWidth = 6;
   g.stroke();
-  g.fillStyle = "#fbf7e9";
-  g.font = "bold 76px Georgia, 'Times New Roman', serif";
+  g.fillStyle = "#ffffff";
+  g.font = "bold 72px 'Helvetica Neue', Arial, sans-serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText(text, c.width / 2, c.height / 2 + 4, c.width - 120);
@@ -355,7 +363,7 @@ class LogoShow {
     this.glow = new THREE.Mesh(
       new THREE.PlaneGeometry(1.9, aspect + 0.9),
       new THREE.MeshBasicMaterial({
-        map: radialTexture("rgba(255,210,90,.9)", "rgba(255,190,40,0)"),
+        map: haloTexture("rgba(255,205,80,.85)", "rgba(255,190,40,0)"),
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       }),
     );
@@ -370,7 +378,7 @@ class LogoShow {
       new THREE.PlaneGeometry(1.1, 1.1 * 192 / 1024),
       new THREE.MeshBasicMaterial({ map: textTexture(BRAND.tagline), transparent: true, depthWrite: false }),
     );
-    this.bannerY = aspect / 2 + 0.22;
+    this.bannerY = -aspect / 2 - 0.16; // below the logo, clear of the falling drop
     this.root.add(this.banner);
 
     // Oil drops + ripples.
@@ -381,6 +389,14 @@ class LogoShow {
     this.drops = [];
     this.rippleGeo = new THREE.RingGeometry(0.85, 1, 40);
     this.ripples = [];
+
+    this.oliveGeo = new THREE.SphereGeometry(0.045, 20, 14);
+    this.oliveGeo.scale(1, 1.25, 1);
+    this.oliveMat = new THREE.MeshStandardMaterial({
+      color: BRAND.colors.olive, roughness: 0.3, metalness: 0.05, transparent: true,
+    });
+    this.olives = [];
+    this.oliveTimer = 0.5;
 
     // Floating sparkles.
     const n = 70;
@@ -411,15 +427,32 @@ class LogoShow {
 
   burst() {
     if (this.target === 0) return;
-    for (let i = 0; i < 8; i++) this.spawnDrop((Math.random() - 0.5) * 0.7, Math.random() * 0.4);
+    for (let i = 0; i < 8; i++) {
+      this.spawnDrop((Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * this.aspect * 0.8, Math.random() * 0.4);
+    }
+    for (let i = 0; i < 3; i++) this.spawnOlive();
   }
 
-  spawnDrop(x = (Math.random() - 0.5) * 0.5, delayY = 0) {
+  spawnDrop(x, floor, delayY = 0, size = 0.06 + Math.random() * 0.03) {
     const m = new THREE.Mesh(this.dropGeo, this.dropMat);
-    m.scale.setScalar(0.06 + Math.random() * 0.03);
-    m.position.set(x, this.aspect / 2 + 0.55 + delayY, 0.12 + Math.random() * 0.08);
+    m.scale.setScalar(size);
+    m.position.set(x, this.aspect / 2 + 0.55 + delayY, 0.04);
     this.root.add(m);
-    this.drops.push({ mesh: m, vy: 0 });
+    this.drops.push({ mesh: m, vy: 0, floor });
+  }
+
+  // An olive pops out of the logo's olive sprig towards the viewer.
+  spawnOlive() {
+    const m = new THREE.Mesh(this.oliveGeo, this.oliveMat.clone());
+    const o = BRAND.oliveSpot;
+    m.position.set(o.x + (Math.random() - 0.5) * 0.08, o.y + (Math.random() - 0.5) * 0.12, 0.02);
+    m.rotation.set(Math.random(), Math.random(), Math.random());
+    this.root.add(m);
+    this.olives.push({
+      mesh: m, life: 0,
+      v: new THREE.Vector3(0.12 + Math.random() * 0.15, 0.05 + Math.random() * 0.12, 0.35 + Math.random() * 0.2),
+      spin: (Math.random() - 0.5) * 4,
+    });
   }
 
   spawnRipple(x, y) {
@@ -453,19 +486,39 @@ class LogoShow {
     if (this.target && a > 1.4) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
-        this.spawnDrop();
-        this.spawnTimer = 0.6 + Math.random() * 0.6;
+        this.spawnDrop(BRAND.dropSpot.x, BRAND.dropSpot.y, 0, 0.075);
+        this.spawnTimer = 1.4 + Math.random() * 0.5;
+      }
+    }
+    if (this.target && a > 2) {
+      this.oliveTimer -= dt;
+      if (this.oliveTimer <= 0) {
+        this.spawnOlive();
+        this.oliveTimer = 1.1 + Math.random() * 0.8;
+      }
+    }
+    for (let i = this.olives.length - 1; i >= 0; i--) {
+      const o = this.olives[i];
+      o.life += dt;
+      o.mesh.position.addScaledVector(o.v, dt);
+      o.mesh.position.y += Math.sin(o.life * 4) * 0.002;
+      o.mesh.rotation.z += o.spin * dt;
+      o.mesh.scale.setScalar(easeOutBack(clamp01(o.life / 0.4)));
+      o.mesh.material.opacity = clamp01((2.4 - o.life) / 0.6);
+      if (o.life > 2.4) {
+        this.root.remove(o.mesh);
+        o.mesh.material.dispose();
+        this.olives.splice(i, 1);
       }
     }
 
-    const floor = -this.aspect * 0.1;
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
       d.vy -= 1.6 * dt;
       d.mesh.position.y += d.vy * dt;
       d.mesh.scale.y = d.mesh.scale.x * (1 + Math.min(0.5, -d.vy * 0.4)); // stretch while falling
-      if (d.mesh.position.y < floor) {
-        this.spawnRipple(d.mesh.position.x, floor);
+      if (d.mesh.position.y < d.floor) {
+        this.spawnRipple(d.mesh.position.x, d.floor);
         this.root.remove(d.mesh);
         this.drops.splice(i, 1);
       }

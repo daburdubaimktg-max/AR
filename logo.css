@@ -1,5 +1,6 @@
 :root {
-  --bg: #14200f;
+  --bg: #123a20;
+  --red: #a51f36;
   --fg: #fbf7e9;
   --muted: rgba(251, 247, 233, 0.72);
   --gold: #e8b923;
@@ -17,14 +18,14 @@ button, label { font: inherit; color: inherit; cursor: pointer; }
 
 .overlay { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 16px; padding: 24px; text-align: center;
-  background: radial-gradient(circle at 50% 30%, #2c4a1c, var(--bg) 70%); }
-.overlay h1 { margin: 0; font-size: 32px; color: var(--gold); letter-spacing: .5px; }
+  background: radial-gradient(circle at 50% 30%, #2f6b3c, var(--bg) 70%); }
+.logo-img { width: min(220px, 60vw); background: #fff; border-radius: 20px; padding: 14px; }
+.overlay h1 { margin: 0; font-size: 28px; color: #fff; letter-spacing: .5px; }
 .overlay p { margin: 0; max-width: 340px; color: var(--muted); }
 .overlay .small { font-size: 13px; }
-.badge { border: 2px solid var(--gold); color: var(--gold); border-radius: 12px; padding: 4px 10px; font-weight: 700; }
 #trainBox { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
-.primary { display: inline-block; background: linear-gradient(180deg, #f3cc4a, #d49f12); color: #1d1a08; border: 0;
+.primary { display: inline-block; background: var(--red); color: #fff; border: 0;
   border-radius: 999px; padding: 14px 28px; font-weight: 700; text-decoration: none; }
 .ghost { display: inline-block; background: var(--glass); border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
   padding: 13px 22px; color: var(--fg); text-decoration: none; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
@@ -33,11 +34,11 @@ button, label { font: inherit; color: inherit; cursor: pointer; }
 
 #progress { width: min(280px, 80vw); }
 .bar { height: 6px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; }
-.bar span { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s; }
+.bar span { display: block; height: 100%; width: 0; background: #fff; transition: width .2s; }
 
 #hint { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 18px; pointer-events: none; }
-.scan-frame { width: min(70vw, 300px); aspect-ratio: 1; border-radius: 24px; border: 2px solid rgba(232,185,35,.85);
+.scan-frame { width: min(70vw, 300px); aspect-ratio: 1; border-radius: 24px; border: 3px solid rgba(255,255,255,.9);
   box-shadow: 0 0 0 100vmax rgba(0,0,0,.25); animation: pulse 1.6s ease-in-out infinite; }
 #hint p { background: var(--glass); padding: 8px 16px; border-radius: 999px; margin: 0; }
 @keyframes pulse { 50% { transform: scale(1.04); opacity: .7; } }

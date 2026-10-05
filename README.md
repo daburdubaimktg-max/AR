@@ -13,13 +13,11 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 ## Logo AR (`logo.html`)
 
-Point the camera at the **ORS Olive Oil** logo and it comes to life: an olive branch wreath grows around it, golden oil drops fall and ripple on the logo, sparkles float up, and a tagline banner appears with *Shop now* and *Olive selfie* buttons. Tap the screen for a burst of oil.
+Point the camera at the **ORS Olive Oil** logo and it comes to life: an olive branch wreath grows around it, a golden oil drop falls into the drop in the ORS "O", olives pop out of the logo's olive sprig, sparkles float up, and a tagline banner appears with *Shop now* and *Olive selfie* buttons. Tap the screen for a burst of oil.
 
 Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js) with three.js.
 
-**Setting the logo**
-- *Quick test:* open `logo.html`, tap **Choose logo image** and pick a photo of the logo. The phone learns it in a few seconds and remembers it.
-- *For everyone:* add a compiled target at `targets/logo.mind` (make one with the [MindAR compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)) and set `logoAspect` (height ÷ width) in `BRAND` at the top of `logo.js`. When that file exists, the page goes straight to the camera.
+**The logo** is built in: `targets/logo.png` is the ORS Olive Oil logo and `targets/logo.mind` is its compiled tracking data, so the page goes straight to the camera. To swap in a different image, replace both (compile with the [MindAR compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)) and update `logoAspect`, `dropSpot` and `oliveSpot` in `BRAND`. Without a `logo.mind`, the page lets you pick a logo photo and learns it on the phone.
 
 Tracking works best on a detailed, high-contrast image, e.g. the full front label of the jar or bottle, rather than a plain flat logo.
 
