@@ -21,6 +21,7 @@ button, label.chip { font: inherit; color: inherit; cursor: pointer; }
 .overlay h1 { margin: 0; font-size: 34px; }
 .overlay p { margin: 0; max-width: 340px; color: var(--muted); }
 .error { color: var(--danger) !important; }
+.link { color: var(--muted); font-size: 14px; }
 
 .primary { background: var(--accent); border: 0; border-radius: 999px; padding: 14px 28px; font-weight: 600; }
 .chip { background: var(--glass); border: 1px solid rgba(255,255,255,.15); border-radius: 999px;

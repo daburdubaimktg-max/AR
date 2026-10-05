@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#14200f" />
+  <title>ORS Olive Oil AR</title>
+  <link rel="stylesheet" href="logo.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ar"></div>
+
+  <section id="setup" class="overlay">
+    <div class="badge">AR</div>
+    <h1 id="brandTitle">ORS Olive Oil</h1>
+    <p>Point your camera at the logo and watch it come to life.</p>
+
+    <button id="startBtn" class="primary" hidden>Start</button>
+
+    <div id="trainBox" hidden>
+      <p class="small">First, show the app what to look for: pick a clear, straight-on photo of the logo or product label.</p>
+      <label class="primary file">
+        Choose logo image
+        <input id="logoFile" type="file" accept="image/*" hidden />
+      </label>
+      <button id="useSavedBtn" class="ghost" hidden>Use the last logo</button>
+    </div>
+
+    <div id="progress" hidden>
+      <div class="bar"><span id="progressFill"></span></div>
+      <p class="small" id="progressText">Learning the logo…</p>
+    </div>
+
+    <p id="setupError" class="error" hidden></p>
+    <a class="link" href="./">← Sticker camera</a>
+  </section>
+
+  <div id="hint" hidden>
+    <div class="scan-frame"></div>
+    <p>Point at the logo</p>
+  </div>
+
+  <footer id="cta" hidden>
+    <p class="tap-tip">Tap anywhere for a splash of oil</p>
+    <div class="row">
+      <a id="shopBtn" class="primary" target="_blank" rel="noopener">Shop now</a>
+      <a class="ghost" href="./">Olive selfie</a>
+    </div>
+  </footer>
+
+  <script type="module" src="logo.js"></script>
+</body>
+</html>
