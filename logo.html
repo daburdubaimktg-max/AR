@@ -23,20 +23,11 @@
     <h1 id="brandTitle">ORS Olive Oil</h1>
     <p>Point your camera at this logo and watch it come to life.</p>
 
-    <button id="startBtn" class="primary" hidden>Start</button>
-
-    <div id="trainBox" hidden>
-      <p class="small">First, show the app what to look for: pick a clear, straight-on photo of the logo or product label.</p>
-      <label class="primary file">
-        Choose logo image
-        <input id="logoFile" type="file" accept="image/*" hidden />
-      </label>
-      <button id="useSavedBtn" class="ghost" hidden>Use the last logo</button>
-    </div>
+    <button id="startBtn" class="primary">Start</button>
 
     <div id="progress" hidden>
       <div class="bar"><span id="progressFill"></span></div>
-      <p class="small" id="progressText">Learning the logo…</p>
+      <p class="small" id="progressText">Loading the 3D logo…</p>
     </div>
 
     <p id="setupError" class="error" hidden></p>
@@ -45,11 +36,12 @@
 
   <div id="hint" hidden>
     <div class="scan-frame"></div>
-    <p>Point at the logo</p>
+    <p>Point at the ORS Olive Oil logo</p>
   </div>
 
   <footer id="cta" hidden>
-    <p class="tap-tip">Tap anywhere for a splash of oil</p>
+    <p id="tagline" class="tagline"></p>
+    <p class="tap-tip">Tap to spin the logo</p>
     <div class="row">
       <a id="shopBtn" class="primary" target="_blank" rel="noopener">Shop now</a>
       <a class="ghost" href="./">Olive selfie</a>

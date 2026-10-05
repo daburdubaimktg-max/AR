@@ -13,15 +13,25 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 ## Logo AR (`logo.html`)
 
-Point the camera at the **ORS Olive Oil** logo and it comes to life: an olive branch wreath grows around it, a golden oil drop falls into the drop in the ORS "O", olives pop out of the logo's olive sprig, sparkles float up, and a tagline banner appears with *Shop now* and *Olive selfie* buttons. Tap the screen for a burst of oil.
+Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D:
 
-Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js) with three.js.
+1. A gold light sweeps across the printed logo.
+2. The red pill extrudes up out of the paper and the white **ORS** presses out of it.
+3. **O‑L‑I‑V‑E‑O‑I‑L** rise one by one with a little hop.
+4. The printed olives inflate into glossy 3D olives; stems grow and leaves unfurl.
+5. The whole logo lifts off the paper and floats, with a soft shadow and a burst of gold dust.
+6. Every few seconds a golden oil drop forms in the drop of the ORS "O", falls, and a gold glint sweeps across the letters.
 
-**The logo** is built in: `targets/logo.png` is the ORS Olive Oil logo and `targets/logo.mind` is its compiled tracking data, so the page goes straight to the camera. To swap in a different image, replace both (compile with the [MindAR compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile)) and update `logoAspect`, `dropSpot` and `oliveSpot` in `BRAND`. Without a `logo.mind`, the page lets you pick a logo photo and learns it on the phone.
+Tap to spin the logo 360°. Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js); rendering uses three.js.
 
-Tracking works best on a detailed, high-contrast image, e.g. the full front label of the jar or bottle, rather than a plain flat logo.
+**How the 3D logo is made.** The letters and pill are traced from the real artwork, so they keep the exact brand letterforms:
 
-Edit the `BRAND` block in `logo.js` for the tagline, button text, shop link and colours.
+- `targets/logo-source.png` is the original transparent logo.
+- `tools/vectorize_logo.py` traces it to `targets/logo-shapes.json`, which `logo.js` extrudes into 3D.
+- The olive sprig is modelled in `logo.js` (`SPRIG`) to sit over the printed one.
+- `targets/logo.png` and `targets/logo.mind` are the tracking image and its compiled MindAR target.
+
+Edit the `BRAND` block in `logo.js` for the tagline, button text, shop link and colours. Add `?debug` to the URL to get `window.reveal` in the console (e.g. `reveal.age = 0` replays the reveal).
 
 ## Try it
 
@@ -43,7 +53,8 @@ python3 -m http.server 8000
 | `index.html` | Page layout and controls |
 | `style.css` | Styling |
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
-| `logo.html`, `logo.css`, `logo.js` | Logo-scanning AR experience |
-| `targets/` | Pre-built image-tracking targets (`logo.mind`) |
+| `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience |
+| `targets/` | Logo artwork, traced shapes and the MindAR tracking target |
+| `tools/vectorize_logo.py` | Traces the logo artwork into `targets/logo-shapes.json` |
 
 Add built-in stickers by editing `PRESETS` in `app.js`. Each has an emoji and a face placement (`x`, `y`, size `s`) measured in eye-widths from the bridge of the nose.
