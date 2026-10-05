@@ -407,15 +407,97 @@ function makeFace() {
 
 // ---------- The reveal ----------
 // A cartoon "coming to life" (seconds after the logo is found):
+// (all at half speed: REVEAL_SPEED)
 //   0.0  the print trembles and rumbles
 //   0.7  the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
 //   1.0  each letter crouches and leaps out of the paper with its own trick
 //        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
 //   2.0  the olives pop off the page like popcorn, land, open their eyes and wink
+//   3.2  an olive-branch wreath grows up around the logo
 //   3.6  finale: the logo lifts off, the letters do a musical stadium wave, confetti
 //   4.3+ idle: drops + glint, olive hops across the letters, waves
 // Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
 // anywhere else to spin the logo.
+
+// One side of the olive-branch wreath that grows up around the logo.
+class WreathBranch {
+  constructor(side) {
+    this.group = new THREE.Group();
+    this.group.position.set(side * 0.53, -ASPECT * 0.42, 0.04);
+    this.group.scale.x = side;
+
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0.1, 0.18, 0.08),
+      new THREE.Vector3(0.13, 0.46, 0.12),
+      new THREE.Vector3(0.05, 0.76, 0.1),
+    ]);
+    this.stem = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 48, 0.008, 6, false),
+      new THREE.MeshStandardMaterial({ color: BRAND.colors.stem, roughness: 0.7 }),
+    );
+    this.stemLen = this.stem.geometry.index.count;
+    this.stem.geometry.setDrawRange(0, 0);
+    this.group.add(this.stem);
+
+    const leafGeo = leafGeometry(0.16, 0.06);
+    const leafMats = [
+      new THREE.MeshPhysicalMaterial({ color: BRAND.colors.leaf, side: THREE.DoubleSide, roughness: 0.55, clearcoat: 0.15, envMapIntensity: 0.4 }),
+      new THREE.MeshPhysicalMaterial({ color: BRAND.colors.green, side: THREE.DoubleSide, roughness: 0.55, clearcoat: 0.15, envMapIntensity: 0.4 }),
+    ];
+    this.leaves = [];
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const t = 0.1 + (i / (n - 1)) * 0.86;
+      const pivot = new THREE.Group();
+      pivot.position.copy(curve.getPoint(t));
+      const tan = curve.getTangent(t);
+      const out = i % 2 ? 1 : -1;
+      pivot.rotation.z = Math.atan2(tan.y, tan.x) + out * 0.85;
+      pivot.rotation.x = 0.35 * out;
+      pivot.add(new THREE.Mesh(leafGeo, leafMats[i % 2]));
+      pivot.scale.setScalar(0.001);
+      this.group.add(pivot);
+      this.leaves.push({ pivot, t, size: 0.8 + Math.random() * 0.4 });
+    }
+    const tip = new THREE.Group();
+    tip.position.copy(curve.getPoint(1));
+    const tt = curve.getTangent(1);
+    tip.rotation.z = Math.atan2(tt.y, tt.x);
+    tip.add(new THREE.Mesh(leafGeo, leafMats[0]));
+    tip.scale.setScalar(0.001);
+    this.group.add(tip);
+    this.leaves.push({ pivot: tip, t: 1, size: 1 });
+
+    const oliveGeo = new THREE.SphereGeometry(0.026, 18, 12);
+    oliveGeo.scale(1, 1.28, 1);
+    const oliveMat = glossy(BRAND.colors.olive, { roughness: 0.4 });
+    this.olives = [0.3, 0.55, 0.8].map((t, i) => {
+      const m = new THREE.Mesh(oliveGeo, oliveMat);
+      const p = curve.getPoint(t);
+      m.position.set(p.x + (i % 2 ? 0.03 : -0.03), p.y - 0.035, p.z + 0.02);
+      m.scale.setScalar(0.001);
+      this.group.add(m);
+      return { mesh: m, t };
+    });
+  }
+
+  // grow: 0..1 how far the branch has grown.
+  update(grow, time) {
+    const g = clamp01(grow);
+    this.stem.geometry.setDrawRange(0, Math.floor((this.stemLen * g) / 3) * 3);
+    for (const l of this.leaves) {
+      const k = easeOutBack(clamp01((g - l.t * 0.85) / 0.2)) * l.size;
+      l.pivot.scale.setScalar(Math.max(0.001, k));
+    }
+    for (const o of this.olives) {
+      const k = easeOutBack(clamp01((g - 0.85 - o.t * 0.1) / 0.15));
+      o.mesh.scale.setScalar(Math.max(0.001, k));
+    }
+    this.group.rotation.z = Math.sin(time * 1.3) * 0.04 * g;
+    this.group.rotation.y = Math.sin(time * 0.9 + 1) * 0.06 * g;
+  }
+}
 
 const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo", "flip"]; // O L I V E O I L
 const T_PILL = 0.7;
@@ -423,6 +505,7 @@ const T_LETTERS = 1.0, LETTER_GAP = 0.22, CROUCH = 0.12, FLY = 0.75;
 const T_OLIVES = 2.0, OLIVE_GAP = 0.25, OLIVE_FLY = 0.55;
 const T_FINALE = 3.6;
 const READY_AT = 4.3;
+const REVEAL_SPEED = 0.5; // the coming-to-life plays at half speed (~8.6s); idle play is real-time
 
 class LogoReveal {
   constructor(shapes, camera) {
@@ -442,20 +525,6 @@ class LogoReveal {
     this.dropState = null;
     this.gameMode = false;
 
-    // Paper-coloured cover that hides the flat print once the 3D one rises.
-    this.cover = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.04, ASPECT + 0.04),
-      new THREE.MeshBasicMaterial({
-        color: 0xf7f7f4, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
-        alphaMap: canvasTexture(128, 128, (g) => {
-          g.fillStyle = "#000"; g.fillRect(0, 0, 128, 128);
-          g.filter = "blur(4px)"; g.fillStyle = "#fff"; g.fillRect(8, 8, 112, 112);
-        }),
-      }),
-    );
-    this.cover.position.z = 0.0005;
-    this.root.add(this.cover);
-
     // Soft shadow on the paper under the floating logo.
     this.shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(1 + 128 / 512, ASPECT + 128 / 512),
@@ -468,13 +537,13 @@ class LogoReveal {
     this.logo = new THREE.Group();
     this.root.add(this.logo);
 
-    this.pill = extrude(shapes.pill, glossy(BRAND.colors.red), 0.028, 0.009);
+    this.pill = extrude(shapes.pill, glossy(BRAND.colors.red), 0.045, 0.01);
     this.logo.add(this.pill);
     const pillFront = this.pill.userData.depth;
 
     const white = glossy(BRAND.colors.white, { roughness: 0.22 });
     this.ors = shapes.ors.map((p) => {
-      const m = extrude([p], white, 0.012, 0.003);
+      const m = extrude([p], white, 0.02, 0.004);
       m.position.z = pillFront - 0.002;
       this.logo.add(m);
       return m;
@@ -496,13 +565,17 @@ class LogoReveal {
 
     this.letters = shapes.letters.map((p) => {
       const mat = glossy(BRAND.colors.green, { emissive: BRAND.colors.gold, emissiveIntensity: 0 });
-      const m = extrude(p, mat, 0.05, 0.007);
+      const m = extrude(p, mat, 0.09, 0.008);
       this.logo.add(m);
       return m;
     });
     this.letterFx = this.letters.map(() => ({ jump: 0, dip: 0 }));
-    this.tm = extrude(shapes.tm, glossy(BRAND.colors.green), 0.006, 0.002);
+    this.tm = extrude(shapes.tm, glossy(BRAND.colors.green), 0.01, 0.002);
     this.logo.add(this.tm);
+
+    // Olive-branch wreath around the logo (grows in the finale).
+    this.wreath = [new WreathBranch(-1), new WreathBranch(1)];
+    this.wreath.forEach((b) => this.logo.add(b.group));
 
     // Olive sprig.
     this.sprig = new THREE.Group();
@@ -519,7 +592,7 @@ class LogoReveal {
       const m = new THREE.Mesh(sphere, oliveMat);
       const c = px(...o.c);
       const depth = Math.min(o.r[0], o.r[1]) * U * 0.95;
-      m.position.set(c.x, c.y, depth + o.z);
+      m.position.set(c.x, c.y, depth + o.z + 0.03); // sit forward with the deeper letters
       m.rotation.z = THREE.MathUtils.degToRad(o.tilt);
       m.userData.r = new THREE.Vector3(o.r[0] * U, o.r[1] * U, depth);
       const face = makeFace();
@@ -760,7 +833,7 @@ class LogoReveal {
   }
 
   update(dt, time) {
-    if (this.active) this.age += dt;
+    if (this.active) this.age += dt * (this.age < READY_AT ? REVEAL_SPEED : 1);
     else this.lostFor += dt;
     this.apply(this.age, time, dt);
     this.prevAge = this.age;
@@ -794,8 +867,8 @@ class LogoReveal {
     if (f < 1) {
       const arc = Math.sin(Math.PI * f);
       const v = Math.abs(Math.cos(Math.PI * f)); // fast at take-off and landing -> stretch
-      p.y = arc * 0.2;
-      p.z = arc * 0.22;
+      p.y = arc * 0.24;
+      p.z = arc * 0.38;
       p.sy = 1 + 0.22 * v;
       p.sx = 1 - 0.1 * v;
       const turn = easeInOut(f) * Math.PI * 2;
@@ -807,8 +880,8 @@ class LogoReveal {
         case "pogo": {
           const b = Math.abs(Math.sin(Math.PI * 2 * f));
           const vv = Math.abs(Math.cos(Math.PI * 2 * f));
-          p.y = b * 0.14;
-          p.z = b * 0.12;
+          p.y = b * 0.16;
+          p.z = b * 0.22;
           p.sy = 1 + 0.3 * vv;
           p.sx = 1 - 0.12 * vv;
           break;
@@ -835,8 +908,6 @@ class LogoReveal {
 
     // --- Act 1: the print wakes up -------------------------------------
     this.cue(0.02, () => sfx.rumble());
-    // The paper-coloured cover hides the real print under the flat 3D copy.
-    this.cover.material.opacity = 0.96 * smooth(a / 0.15);
 
     // --- Act 2: the pill pops, ORS jumps out, the "O" squirts oil ------
     const pu = a - T_PILL;
@@ -932,9 +1003,12 @@ class LogoReveal {
       this.wave(true);
     });
     this.cue(T_FINALE + 0.35, () => this.celebrate(45));
+    const wreathGrow = (a - (T_FINALE - 0.4)) / 1.4;
+    this.wreath.forEach((b) => b.update(wreathGrow, time));
+    this.cue(T_FINALE - 0.4, () => sfx.whoosh());
     const lift = smooth((a - T_FINALE) / 0.7);
     const float = Math.sin(time * 1.4) * 0.008 * lift;
-    this.logo.position.z = 0.07 * lift + float;
+    this.logo.position.z = 0.1 * lift + float;
     let spinY = 0;
     if (this.spin) {
       this.spin.t += dt / 1.1;
@@ -942,11 +1016,11 @@ class LogoReveal {
       if (this.spin.t >= 1) this.spin = null;
     }
     const sway = this.gameMode ? 0.4 : 1; // calmer during the game
-    this.logo.rotation.x = Math.sin(time * 0.7) * 0.07 * lift * sway;
-    this.logo.rotation.y = Math.sin(time * 0.5) * 0.1 * lift * sway + spinY;
-    this.shadow.material.opacity = 0.28 * lift;
-    this.shadow.position.set(0.012 * lift, -0.02 * lift, 0.001);
-    this.shadow.scale.setScalar(1 + 0.04 * lift + float);
+    this.logo.rotation.x = Math.sin(time * 0.7) * 0.12 * lift * sway;
+    this.logo.rotation.y = Math.sin(time * 0.5) * 0.18 * lift * sway + spinY;
+    this.shadow.material.opacity = 0.32 * lift;
+    this.shadow.position.set(0.025 * lift, -0.04 * lift, 0.001);
+    this.shadow.scale.setScalar(1 + 0.08 * lift + float);
 
     // --- Idle: drop + glint, olive hops, waves -------------------------
     if (this.active && !this.gameMode && a > READY_AT) {
@@ -1005,7 +1079,7 @@ class LogoReveal {
         const f = (u - 0.1) / OLIVE_FLY;
         const arc = Math.sin(Math.PI * f);
         m.position.y += arc * 0.13;
-        m.position.z += arc * 0.2;
+        m.position.z += arc * 0.3;
         m.position.x += Math.sin(Math.PI * f) * (i === 0 ? -0.04 : 0.04);
         rotY = easeInOut(f) * Math.PI * 2;
         m.rotation.z = fx.tilt + easeInOut(f) * Math.PI * 2 * (i % 2 ? 1 : -1);

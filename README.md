@@ -13,13 +13,13 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 ## Logo AR (`logo.html`)
 
-Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D, like a cartoon:
+Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D, like a cartoon (about 8 seconds; the speed is `REVEAL_SPEED` in `logo.js`):
 
 1. **Wake-up:** the printed logo trembles and rumbles.
 2. **Pill pops:** the red pill bursts up, the O, R and S jump out of it (the R twirls), and the drop in the "O" squirts a fountain of golden oil.
 3. **Letters leap:** each letter crouches, then leaps out of the paper with its own trick (O rolls like a wheel, L backflips, I pogos, V cartwheels, E spins) and lands with a squash, each with a rising note.
 4. **Olive popcorn:** the olives pop off the page one by one, spin, land, open their eyes and wink.
-5. **Finale:** the logo lifts off the paper, the letters do a musical stadium wave, the olives cheer and confetti falls.
+5. **Finale:** an olive-branch wreath grows up around the logo, the logo lifts off the paper, the letters do a musical stadium wave, the olives cheer and confetti falls.
 
 The timings and moves live in the constants above `class LogoReveal` in `logo.js` (`LETTER_MOVES`, `T_PILL`, `T_LETTERS`, …).
 
