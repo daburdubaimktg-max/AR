@@ -13,18 +13,19 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 ## Logo AR (`logo.html`)
 
-Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D:
+Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D, like a cartoon:
 
-1. A gold light sweeps across the printed logo.
-2. The red pill extrudes up out of the paper and the white **ORS** presses out of it.
-3. **O‑L‑I‑V‑E‑O‑I‑L** rise one by one with a little hop.
-4. The printed olives inflate into glossy 3D olives; stems grow and leaves unfurl.
-5. The whole logo lifts off the paper and floats, with a soft shadow and a burst of gold dust.
-6. Every few seconds a golden oil drop forms in the drop of the ORS "O", falls, and a gold glint sweeps across the letters.
+1. **Wake-up:** the printed logo trembles and rumbles.
+2. **Pill pops:** the red pill bursts up, the O, R and S jump out of it (the R twirls), and the drop in the "O" squirts a fountain of golden oil.
+3. **Letters leap:** each letter crouches, then leaps out of the paper with its own trick (O rolls like a wheel, L backflips, I pogos, V cartwheels, E spins) and lands with a squash, each with a rising note.
+4. **Olive popcorn:** the olives pop off the page one by one, spin, land, open their eyes and wink.
+5. **Finale:** the logo lifts off the paper, the letters do a musical stadium wave, the olives cheer and confetti falls.
+
+The timings and moves live in the constants above `class LogoReveal` in `logo.js` (`LETTER_MOVES`, `T_PILL`, `T_LETTERS`, …).
 
 **Play with it**
-- **Olive buddies:** after the reveal the three olives open their eyes and smile; they blink and look around. Every so often one hops out and bounces across the tops of O‑L‑I‑V‑E, which squish as it lands.
-- **Musical letters:** tap a letter to make it jump and play a note, so O‑L‑I‑V‑E‑O‑I‑L is a little keyboard. Tap an olive and it giggles and flips. Tap the red pill for an oil drop, or tap anywhere else to spin the whole logo.
+- **Olive buddies:** after the reveal the three olives open their eyes and smile; they blink and look around. Every so often one hops out and bounces across the tops of O‑L‑I‑V‑E (which squish as it lands), and the letters do a stadium wave.
+- **Musical letters:** tap a letter to make it jump and play a note, so O‑L‑I‑V‑E‑O‑I‑L is a little keyboard. Tap an olive and it giggles and flips. Tap the red pill to squirt oil, or tap anywhere else to spin the whole logo.
 - **Catch the oil (mini-game):** 25 seconds of golden drops raining from the ORS "O". Tap to catch them; bright bonus drops are worth +3, streaks build a combo, and a bottle fills as you score. It ends with olive-and-leaf confetti, a title and your best score (saved on the device). Tune it in `GAME` in `logo.js`.
 - **📸 Snap:** captures the camera view with the 3D logo and an ORS badge, ready to save or share.
 - **Sound:** pops, boings, drips and a chime, all synthesised in `sfx.js` (no audio files). Use 🔊 to mute. Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js); rendering uses three.js.

@@ -68,6 +68,15 @@ const SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 15
 const note = (i) => SCALE[((i % SCALE.length) + SCALE.length) % SCALE.length];
 
 export const sfx = {
+  rumble() {
+    if (!ready()) return;
+    noise({ dur: 0.75, from: 70, to: 220, gain: 0.45 });
+    tone({ freq: 55, to: 80, dur: 0.75, type: "sawtooth", gain: 0.06 });
+  },
+  squirt() {
+    if (!ready()) return;
+    [0, 1, 2, 3].forEach((n, i) => tone({ freq: 500 + n * 160, to: 1200 + n * 200, dur: 0.07, gain: 0.22, delay: i * 0.06 }));
+  },
   whoosh() { if (ready()) noise({ dur: 0.6, from: 300, to: 3000, gain: 0.25 }); },
   pop(i = 0) { if (ready()) tone({ freq: note(i) * 0.5, to: note(i), dur: 0.12, type: "triangle", gain: 0.35 }); },
   bloop(i = 0) { if (ready()) tone({ freq: 220 + i * 60, to: 660 + i * 90, dur: 0.18, gain: 0.4 }); },

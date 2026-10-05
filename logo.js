@@ -286,13 +286,15 @@ function extrude(polys, material, depth, bevel) {
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(centre.x, centre.y, 0);
   mesh.userData.depth = depth + bevel * 2;
+  mesh.userData.baseX = centre.x;
   mesh.userData.baseY = centre.y;
+  mesh.userData.halfH = geo.boundingBox.max.y;
   return mesh;
 }
 
 function glossy(color, extra = {}) {
   return new THREE.MeshPhysicalMaterial({
-    color, roughness: 0.38, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.55, ...extra,
+    color, roughness: 0.45, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.18, envMapIntensity: 0.35, ...extra,
   });
 }
 
@@ -404,16 +406,23 @@ function makeFace() {
 }
 
 // ---------- The reveal ----------
-// Timeline (seconds after the logo is found):
-//   0.0  gold light sweeps across the printed logo
-//   0.35 red pill extrudes out of the paper, white ORS presses out of it
-//   0.55 O-L-I-V-E-O-I-L rise one by one with a hop (each with a note)
-//   1.1  stems grow, olives inflate from the print, leaves unfurl
-//   1.7  the whole logo lifts off the paper and floats, gold dust bursts
-//   2.6  the olives open their eyes and smile
-//   3.2+ a gold oil drop forms in the ORS "O", falls past the logo, a gold glint sweeps the letters
-//   7+   an olive hops out and bounces across the tops of O-L-I-V-E, then home
-// Tap a letter to play it, an olive to make it flip, anywhere else to spin the logo.
+// A cartoon "coming to life" (seconds after the logo is found):
+//   0.0  the print trembles and rumbles
+//   0.7  the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
+//   1.0  each letter crouches and leaps out of the paper with its own trick
+//        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
+//   2.0  the olives pop off the page like popcorn, land, open their eyes and wink
+//   3.6  finale: the logo lifts off, the letters do a musical stadium wave, confetti
+//   4.3+ idle: drops + glint, olive hops across the letters, waves
+// Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
+// anywhere else to spin the logo.
+
+const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo", "flip"]; // O L I V E O I L
+const T_PILL = 0.7;
+const T_LETTERS = 1.0, LETTER_GAP = 0.22, CROUCH = 0.12, FLY = 0.75;
+const T_OLIVES = 2.0, OLIVE_GAP = 0.25, OLIVE_FLY = 0.55;
+const T_FINALE = 3.6;
+const READY_AT = 4.3;
 
 class LogoReveal {
   constructor(shapes, camera) {
@@ -425,6 +434,9 @@ class LogoReveal {
     this.lostFor = 99;
     this.nextDrop = 0;
     this.nextHop = 0;
+    this.nextWave = 0;
+    this.timers = [];
+    this.squirts = [];
     this.spin = null;
     this.shimmerX = null;
     this.dropState = null;
@@ -443,23 +455,6 @@ class LogoReveal {
     );
     this.cover.position.z = 0.0005;
     this.root.add(this.cover);
-
-    // Gold light sweep across the print at the start.
-    this.sweep = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.22, ASPECT + 0.06),
-      new THREE.MeshBasicMaterial({
-        map: canvasTexture(64, 4, (g, w) => {
-          const grad = g.createLinearGradient(0, 0, w, 0);
-          grad.addColorStop(0, "rgba(255,200,80,0)");
-          grad.addColorStop(0.5, "rgba(255,230,150,.9)");
-          grad.addColorStop(1, "rgba(255,200,80,0)");
-          g.fillStyle = grad; g.fillRect(0, 0, w, 4);
-        }),
-        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-      }),
-    );
-    this.sweep.position.z = 0.002;
-    this.root.add(this.sweep);
 
     // Soft shadow on the paper under the floating logo.
     this.shadow = new THREE.Mesh(
@@ -598,8 +593,10 @@ class LogoReveal {
     if (this.lostFor > 2.5) { // replay the reveal after a real absence
       this.age = 0;
       this.prevAge = 0;
-      this.nextDrop = 3.2;
-      this.nextHop = 7;
+      this.timers = [];
+      this.nextDrop = READY_AT + 2;
+      this.nextHop = READY_AT + 6;
+      this.nextWave = READY_AT + 12;
     }
     this.active = true;
   }
@@ -609,9 +606,9 @@ class LogoReveal {
     this.lostFor = 0;
   }
 
-  get ready() { return this.active && this.age > 2.4; }
+  get ready() { return this.active && this.age > READY_AT; }
 
-  // Screen position (px) and on-screen radius of an object, for forgiving taps.
+  // Screen position (0..1) and on-screen radius of an object, for forgiving taps.
   screenOf(obj, radius) {
     const c = obj.getWorldPosition(new THREE.Vector3());
     const e = obj.localToWorld(new THREE.Vector3(radius, 0, 0));
@@ -644,7 +641,7 @@ class LogoReveal {
     ]);
     if (hit && hit.olive !== undefined) this.pokeOlive(hit.olive);
     else if (hit && hit.letter !== undefined) this.jumpLetter(hit.letter);
-    else if (hit && hit.pill) { this.startDrop(); sfx.bloop(2); }
+    else if (hit && hit.pill) this.squirt();
     else this.spinLogo();
   }
 
@@ -656,10 +653,16 @@ class LogoReveal {
     this.emitDust(30, new THREE.Vector3(0, 0, 0.1), 0.6);
   }
 
-  jumpLetter(i) {
+  jumpLetter(i, withSound = true) {
     this.letterFx[i].jump = 1;
-    sfx.letter(i);
+    if (withSound) sfx.letter(i);
     this.emitDust(8, this.toRoot(this.letters[i]), 0.08);
+  }
+
+  // Stadium wave across the letters (with a little tune when `withSound`).
+  wave(withSound) {
+    this.letters.forEach((_, i) => this.later(i * 0.07, () => this.jumpLetter(i, withSound)));
+    this.later(0.6, () => this.cheer());
   }
 
   pokeOlive(i) {
@@ -682,8 +685,8 @@ class LogoReveal {
     const r = this.olives[i].userData.r;
     const stops = [4, 3, 2, 1, 0].map((li) => {
       const L = this.letters[li];
-      const top = L.userData.baseY + L.geometry.boundingBox.max.y;
-      return { pos: new THREE.Vector3(L.position.x, top + r.y * 0.9, L.userData.depth * 0.6), letter: li };
+      const top = L.userData.baseY + L.userData.halfH;
+      return { pos: new THREE.Vector3(L.userData.baseX, top + r.y * 0.9, L.userData.depth * 0.6), letter: li };
     });
     stops.push({ pos: fx.home.clone(), letter: null });
     fx.hop = { from: this.olives[i].position.clone(), stops, seg: 0, t: 0 };
@@ -693,6 +696,26 @@ class LogoReveal {
     if (this.dropState) return;
     const at = px(...DROP_AT);
     this.dropState = { phase: "form", t: 0, x: at.x, y: at.y, vy: 0 };
+  }
+
+  // A little fountain of golden oil out of the drop in the ORS "O".
+  squirt(n = 8) {
+    const at = px(...DROP_AT);
+    const z = this.pill.userData.depth + 0.03;
+    for (let i = 0; i < n; i++) {
+      const mesh = new THREE.Mesh(this.dropGeo, this.goldMat);
+      const s = rand(0.022, 0.034);
+      mesh.scale.set(s, s * 1.2, s);
+      mesh.position.set(at.x, at.y + 0.02, z);
+      this.logo.add(mesh);
+      this.squirts.push({ mesh, v: new THREE.Vector3(rand(-0.22, 0.22), rand(0.45, 0.75), rand(0.05, 0.25)) });
+    }
+    sfx.squirt();
+  }
+
+  // Run `fn` after `delay` seconds of timeline.
+  later(delay, fn) {
+    this.timers.push({ at: this.age + delay, fn });
   }
 
   // Position of an object in root space (where dust/confetti live).
@@ -748,41 +771,118 @@ class LogoReveal {
     if (this.active && this.prevAge < t && this.age >= t) fn();
   }
 
+  // Cartoon entrance of letter i: tremble flat, crouch, leap out with its own
+  // trick, land with a squash. Returns offsets from the letter's rest pose.
+  letterPose(i, a, time) {
+    const p = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 };
+    const u = a - (T_LETTERS + i * LETTER_GAP);
+    if (u < 0) { // still printed: trembling
+      const k = smooth(a / 0.3);
+      p.sz = 0.02;
+      p.rz = Math.sin(time * 45 + i * 2) * 0.035 * k;
+      p.y = Math.sin(time * 38 + i) * 0.004 * k;
+      return p;
+    }
+    if (u < CROUCH) { // grows out of the paper while crouching
+      const k = u / CROUCH;
+      p.sz = 0.02 + 0.98 * k;
+      p.sy = 1 - 0.22 * k;
+      p.sx = 1 + 0.12 * k;
+      return p;
+    }
+    const f = (u - CROUCH) / FLY;
+    if (f < 1) {
+      const arc = Math.sin(Math.PI * f);
+      const v = Math.abs(Math.cos(Math.PI * f)); // fast at take-off and landing -> stretch
+      p.y = arc * 0.2;
+      p.z = arc * 0.22;
+      p.sy = 1 + 0.22 * v;
+      p.sx = 1 - 0.1 * v;
+      const turn = easeInOut(f) * Math.PI * 2;
+      switch (LETTER_MOVES[i]) {
+        case "roll": p.rz = -turn; break;
+        case "flip": p.rx = -turn; break;
+        case "spin": p.ry = turn; break;
+        case "cartwheel": p.rz = turn; p.x = Math.sin(Math.PI * 2 * f) * 0.06; break;
+        case "pogo": {
+          const b = Math.abs(Math.sin(Math.PI * 2 * f));
+          const vv = Math.abs(Math.cos(Math.PI * 2 * f));
+          p.y = b * 0.14;
+          p.z = b * 0.12;
+          p.sy = 1 + 0.3 * vv;
+          p.sx = 1 - 0.12 * vv;
+          break;
+        }
+      }
+      return p;
+    }
+    const s = u - CROUCH - FLY; // landed: springy wobble
+    const w = Math.exp(-s * 6) * Math.cos(s * 20);
+    p.sy = 1 - 0.28 * w;
+    p.sx = 1 + 0.16 * w;
+    return p;
+  }
+
   apply(a, time, dt = 0) {
-    // Sound cues for the reveal.
-    this.cue(0.02, () => sfx.whoosh());
-    this.cue(0.35, () => sfx.bloop(0));
-    this.letters.forEach((_, i) => this.cue(0.55 + i * 0.09, () => sfx.pop(i)));
-    this.olives.forEach((_, i) => this.cue(1.25 + i * 0.12, () => sfx.bloop(i + 1)));
-    this.cue(1.7, () => sfx.chime());
-    this.cue(2.9, () => sfx.giggle());
+    // Timed events.
+    if (this.timers.length) {
+      const due = this.timers.filter((t) => a >= t.at);
+      if (due.length) {
+        this.timers = this.timers.filter((t) => a < t.at);
+        due.forEach((t) => t.fn());
+      }
+    }
 
-    // 1. Light sweep over the printed logo.
-    const sw = clamp01(a / 0.7);
-    this.sweep.position.x = -0.6 + 1.2 * sw;
-    this.sweep.material.opacity = sw > 0 && sw < 1 ? Math.sin(sw * Math.PI) : 0;
+    // --- Act 1: the print wakes up -------------------------------------
+    this.cue(0.02, () => sfx.rumble());
+    // The paper-coloured cover hides the real print under the flat 3D copy.
+    this.cover.material.opacity = 0.96 * smooth(a / 0.15);
 
-    // 2. Hide the print as the 3D logo grows out of it.
-    this.cover.material.opacity = 0.96 * smooth((a - 0.35) / 0.6);
-
-    // 3. Pill, then ORS, then letters extrude up out of the paper.
-    const grow = (m, start, dur) => {
-      const k = easeOutBack((a - start) / dur);
-      m.scale.z = Math.max(0.001, k);
-      m.visible = a > start;
-      return k;
-    };
-    grow(this.pill, 0.35, 0.5);
-    this.ors.forEach((m, i) => {
-      const k = grow(m, 0.75 + i * 0.05, 0.4);
-      m.scale.x = m.scale.y = 1 + 0.12 * Math.sin(Math.PI * clamp01(k));
+    // --- Act 2: the pill pops, ORS jumps out, the "O" squirts oil ------
+    const pu = a - T_PILL;
+    let pillSz = 0.02, pillY = 0, pillSy = 1;
+    if (pu < 0) {
+      pillY = Math.sin(time * 40) * 0.003 * smooth(a / 0.3);
+    } else {
+      pillSz = Math.max(0.02, easeOutBack(pu / 0.3));
+      pillY = Math.sin(Math.PI * clamp01(pu / 0.4)) * 0.06;
+      const s = Math.max(0, pu - 0.4);
+      pillSy = 1 - 0.18 * Math.exp(-s * 7) * Math.cos(s * 22) * (pu > 0.4 ? 1 : 0);
+    }
+    this.pill.scale.set(1 / Math.sqrt(pillSy), pillSy, pillSz);
+    this.pill.position.y = this.pill.userData.baseY + pillY;
+    this.cue(T_PILL, () => { sfx.bloop(0); this.emitDust(20, new THREE.Vector3(px(345, 78).x, px(345, 78).y, 0.05), 0.5, 0.6); });
+    const pillFront = this.pill.userData.depth * pillSz;
+    this.ors.forEach((m, j) => {
+      const t0 = T_PILL + 0.15 + j * 0.1;
+      const u = a - t0;
+      const f = clamp01(u / 0.35);
+      m.scale.z = u < 0 ? 0.02 : Math.max(0.02, easeOutBack(u / 0.15));
+      const land = Math.max(0, u - 0.35);
+      const w = u > 0.35 ? Math.exp(-land * 7) * Math.cos(land * 22) : 0;
+      m.scale.x = 1 + 0.15 * w;
+      m.scale.y = 1 - 0.25 * w;
+      m.position.y = m.userData.baseY + pillY + (u > 0 ? Math.sin(Math.PI * f) * 0.08 : 0);
+      m.position.z = pillFront - 0.002 + (u > 0 ? Math.sin(Math.PI * f) * 0.06 : 0);
+      m.rotation.y = j === 1 && u > 0 ? easeInOut(f) * Math.PI * 2 : 0; // the R twirls
+      this.cue(t0, () => sfx.pop(5 + j));
     });
-    this.orsTm.visible = a > 0.9;
+    this.orsTm.visible = a > T_PILL + 0.3;
+    this.orsTm.position.z = pillFront + 0.001;
+    this.cue(T_PILL + 0.75, () => this.squirt());
+
+    // --- Act 3: the letters leap out one by one ------------------------
     this.letters.forEach((m, i) => {
-      const start = 0.55 + i * 0.09;
-      grow(m, start, 0.45);
-      m.position.z = 0.05 * Math.sin(Math.PI * clamp01((a - start) / 0.55)); // a little hop
-      // Tap jump / landing dip.
+      const p = this.letterPose(i, a, time);
+      const t0 = T_LETTERS + i * LETTER_GAP;
+      this.cue(t0 + CROUCH, () => sfx.letter(i));
+      this.cue(t0 + CROUCH + FLY, () => {
+        sfx.pop(i + 2);
+        const at = this.toRoot(m);
+        at.y -= m.userData.halfH;
+        this.emitDust(10, at, 0.12, 0.5);
+      });
+      // Tap jump / landing dip on top of the entrance pose.
       const fx = this.letterFx[i];
       let y = 0, sx = 1, sy = 1, rot = 0;
       if (fx.jump > 0) {
@@ -800,27 +900,39 @@ class LogoReveal {
         sy *= 1 - s * 0.15;
         sx *= 1 + s * 0.06;
       }
-      m.position.y = m.userData.baseY + y;
-      m.rotation.z = rot;
-      m.scale.x = sx;
-      m.scale.y = sy;
+      sx *= p.sx;
+      sy *= p.sy;
+      m.scale.set(sx, sy, p.sz);
+      // Squash from the feet, not the middle.
+      m.position.set(
+        m.userData.baseX + p.x,
+        m.userData.baseY + p.y + y + (sy - 1) * m.userData.halfH,
+        p.z,
+      );
+      m.rotation.set(p.rx, p.ry, p.rz + rot);
     });
-    grow(this.tm, 1.3, 0.3);
+    this.tm.scale.z = Math.max(0.02, easeOutBack((a - (T_LETTERS + 8 * LETTER_GAP)) / 0.3));
 
-    // 4. Sprig: stems grow, olives inflate, leaves unfurl.
+    // --- Act 4: the sprig grows and the olives pop like popcorn --------
     this.stems.forEach((s, i) => {
-      const k = clamp01((a - 1.1 - i * 0.08) / 0.4);
+      const k = clamp01((a - 1.8 - i * 0.08) / 0.4);
       s.geometry.setDrawRange(0, Math.floor((s.userData.count * k) / 3) * 3);
     });
     this.olives.forEach((m, i) => this.updateOlive(m, i, a, time, dt));
     this.leaves.forEach((l, i) => {
-      const k = easeOutBack((a - 1.5 - i * 0.1) / 0.5);
+      const k = easeOutBack((a - 2.2 - i * 0.1) / 0.5);
       l.pivot.scale.setScalar(Math.max(0.001, k));
-      l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - 2);
+      l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - 2.7);
     });
 
-    // 5. Lift off the paper and float.
-    const lift = smooth((a - 1.7) / 0.8);
+    // --- Act 5: finale — lift off, stadium wave, confetti --------------
+    this.cue(T_FINALE, () => {
+      sfx.chime();
+      this.emitDust(70, new THREE.Vector3(0, 0, 0.08), 1.1);
+      this.wave(true);
+    });
+    this.cue(T_FINALE + 0.35, () => this.celebrate(45));
+    const lift = smooth((a - T_FINALE) / 0.7);
     const float = Math.sin(time * 1.4) * 0.008 * lift;
     this.logo.position.z = 0.07 * lift + float;
     let spinY = 0;
@@ -835,10 +947,9 @@ class LogoReveal {
     this.shadow.material.opacity = 0.28 * lift;
     this.shadow.position.set(0.012 * lift, -0.02 * lift, 0.001);
     this.shadow.scale.setScalar(1 + 0.04 * lift + float);
-    this.cue(1.7, () => this.emitDust(70, new THREE.Vector3(0, 0, 0.08), 1.1));
 
-    // 6. Idle loop: drop + glint, olive hops.
-    if (this.active && !this.gameMode) {
+    // --- Idle: drop + glint, olive hops, waves -------------------------
+    if (this.active && !this.gameMode && a > READY_AT) {
       if (a > this.nextDrop) {
         this.startDrop();
         this.nextDrop = a + 5.5;
@@ -846,6 +957,10 @@ class LogoReveal {
       if (a > this.nextHop) {
         this.startHop(0);
         this.nextHop = a + 13;
+      }
+      if (a > this.nextWave) {
+        this.wave(false);
+        this.nextWave = a + 13;
       }
     }
     this.updateDrop(dt);
@@ -864,26 +979,59 @@ class LogoReveal {
   updateOlive(m, i, a, time, dt) {
     const fx = this.oliveFx[i];
     const r = m.userData.r;
-    const k = easeOutBack((a - 1.25 - i * 0.12) / 0.55);
-    const breathe = 1 + Math.sin(time * 2 + i) * 0.015 * clamp01(a - 2);
+    const t0 = T_OLIVES + i * OLIVE_GAP;
+    const u = a - t0;
+    const landAt = 0.1 + OLIVE_FLY;
+    const entering = u < landAt + 0.6;
+
+    // Inflate from the flat print.
+    const k = u < 0 ? 0.02 : Math.min(1, 0.02 + 0.98 * (u / 0.12));
+    const breathe = 1 + Math.sin(time * 2 + i) * 0.015 * clamp01(a - READY_AT);
     let sx = 1, sy = 1;
     if (fx.squash > 0) {
       fx.squash = Math.max(0, fx.squash - dt * 3.5);
       const s = Math.sin(fx.squash * Math.PI) * 0.22;
       sx = 1 + s; sy = 1 - s;
     }
-    m.scale.set(r.x * breathe * sx, r.y * breathe * sy, Math.max(0.0005, r.z * k));
-    m.visible = a > 1.25 + i * 0.12;
-
-    // Flip (tapped / cheering).
     let rotY = fx.look;
-    if (fx.flip > 0) {
+
+    if (entering) {
+      m.position.copy(fx.home);
+      m.position.z = THREE.MathUtils.lerp(0.003, fx.home.z, k);
+      m.rotation.z = fx.tilt;
+      if (u < 0) {
+        m.rotation.z = fx.tilt + Math.sin(time * 42 + i * 3) * 0.06 * smooth(a / 0.3); // trembling
+      } else if (u > 0.1 && u < landAt) { // popcorn!
+        const f = (u - 0.1) / OLIVE_FLY;
+        const arc = Math.sin(Math.PI * f);
+        m.position.y += arc * 0.13;
+        m.position.z += arc * 0.2;
+        m.position.x += Math.sin(Math.PI * f) * (i === 0 ? -0.04 : 0.04);
+        rotY = easeInOut(f) * Math.PI * 2;
+        m.rotation.z = fx.tilt + easeInOut(f) * Math.PI * 2 * (i % 2 ? 1 : -1);
+        const v = Math.abs(Math.cos(Math.PI * f));
+        sy *= 1 + 0.2 * v; sx *= 1 - 0.1 * v;
+      } else if (u >= landAt) {
+        const s = u - landAt;
+        const w = Math.exp(-s * 7) * Math.cos(s * 22);
+        sy *= 1 - 0.3 * w; sx *= 1 + 0.2 * w;
+      }
+      this.cue(t0 + 0.1, () => sfx.bloop(i + 1));
+      this.cue(t0 + landAt, () => {
+        sfx.boing(i + 2);
+        this.emitDust(8, this.toRoot(m), 0.06, 0.5);
+        if (i === this.olives.length - 1) this.later(0.35, () => sfx.giggle());
+      });
+    } else if (fx.flip > 0) {
       fx.flip = Math.max(0, fx.flip - dt / 0.7);
       rotY = easeInOut(1 - fx.flip) * Math.PI * 2;
     }
 
-    // Hopping across the letters.
-    if (fx.hop) {
+    m.scale.set(r.x * breathe * sx, r.y * breathe * sy, Math.max(0.0005, r.z * k));
+    m.visible = true;
+
+    // Hopping across the letters (idle).
+    if (!entering && fx.hop) {
       const h = fx.hop;
       const stop = h.stops[h.seg];
       const last = h.seg === h.stops.length - 1;
@@ -914,24 +1062,26 @@ class LogoReveal {
           m.rotation.z = fx.tilt;
         }
       }
-    } else {
+    } else if (!entering) {
       m.position.copy(fx.home);
-      m.position.z += Math.sin(time * 2.4 + i * 1.7) * 0.004 * clamp01(a - 2.6); // idle bob
+      m.position.z += Math.sin(time * 2.4 + i * 1.7) * 0.004; // idle bob
       fx.look *= 1 - Math.min(1, dt * 3);
     }
     m.rotation.y = rotY;
 
-    // Face: pops on at 2.6s, blinks, pupils wander.
+    // Face: opens its eyes on landing, winks, then blinks and looks around.
     const face = fx.face;
-    const fk = easeOutBack((a - 2.6 - i * 0.15) / 0.4);
+    const faceAt = t0 + landAt + 0.15;
+    const fk = easeOutBack((a - faceAt) / 0.35);
     face.scale.setScalar(Math.max(0.001, fk));
     face.visible = fk > 0.01;
     if (time > fx.blinkAt) fx.blinkAt = time + rand(2, 5);
     const blink = fx.blinkAt - time < 0.12 ? 0.12 : 1;
-    face.userData.eyes.forEach((e) => { e.scale.y = blink; });
+    const wink = a > faceAt + 0.35 && a < faceAt + 0.75;
+    face.userData.eyes.forEach((e, j) => { e.scale.y = wink && j === 1 ? 0.12 : blink; });
     const lookX = Math.sin(time * 0.6 + i * 2) * 0.05 + fx.look * 0.08;
     face.userData.pupils.forEach((p) => { p.position.x = lookX; p.position.y = Math.sin(time * 0.45 + i) * 0.03; });
-    face.userData.mouth.scale.set(1, fx.hop || fx.flip ? 1.5 : 1, 1); // big grin while playing
+    face.userData.mouth.scale.set(1, fx.hop || fx.flip || wink ? 1.5 : 1, 1); // big grin while playing
   }
 
   updateDrop(dt) {
@@ -978,6 +1128,18 @@ class LogoReveal {
     });
     this.dustGeo.attributes.position.needsUpdate = true;
 
+    for (let i = this.squirts.length - 1; i >= 0; i--) {
+      const q = this.squirts[i];
+      q.v.y -= 1.8 * dt;
+      q.mesh.position.addScaledVector(q.v, dt);
+      q.mesh.rotation.z = Math.atan2(-q.v.x, q.v.y) * 0.6; // point along the flight
+      if (q.mesh.position.y < -ASPECT / 2 - 0.05) {
+        this.emitDust(3, this.root.worldToLocal(q.mesh.getWorldPosition(new THREE.Vector3())), 0.02, 0.3);
+        this.logo.remove(q.mesh);
+        this.squirts.splice(i, 1);
+      }
+    }
+
     for (let i = this.confetti.length - 1; i >= 0; i--) {
       const c = this.confetti[i];
       c.life += dt;
@@ -1009,7 +1171,7 @@ class DropGame {
   start() {
     if (this.running) return;
     const s = this.show;
-    if (!s.ready) { s.age = Math.max(s.age, 2.5); } // skip the reveal if needed
+    if (!s.ready) { s.age = Math.max(s.age, READY_AT + 0.1); s.prevAge = s.age; } // skip the reveal if needed
     this.running = true;
     this.score = 0;
     this.combo = 0;
