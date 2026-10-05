@@ -53,13 +53,34 @@
 
   <footer id="cta" hidden>
     <p id="tagline" class="tagline"></p>
-    <p class="tap-tip" id="tapTip">Tap the letters and olives!</p>
-    <button id="playBtn" class="primary big">Play: Catch the oil</button>
+    <button id="matchBtn" class="primary big">✨ Find my hair ritual</button>
     <div class="row">
-      <a id="shopBtn" class="ghost" target="_blank" rel="noopener">Shop now</a>
-      <a class="ghost" href="./">Olive selfie</a>
+      <a id="coachBtn" class="ghost" href="ritual.html">🧴 Ritual coach</a>
+      <button id="playBtn" class="ghost">🎮 Play</button>
+      <a id="shopBtn" class="ghost" target="_blank" rel="noopener">🛒 Shop</a>
     </div>
   </footer>
+
+  <section id="quiz" class="quiz" hidden>
+    <div class="bubble"><span class="ollie" aria-hidden="true">🫒</span><p id="quizQ"></p></div>
+    <div id="quizOpts" class="opts"></div>
+    <div class="quiz-foot"><span id="quizStep"></span><button id="quizClose" class="link-btn light">Close</button></div>
+  </section>
+
+  <section id="routine" class="sheet" hidden>
+    <div class="card routine-card">
+      <p class="result-kicker">Your ORS Olive Oil ritual</p>
+      <h2 id="routineTitle"></h2>
+      <p class="focus" id="routineFocus"></p>
+      <ol id="routineSteps" class="steps"></ol>
+      <div class="col">
+        <a id="routineCoach" class="primary" href="ritual.html">🧴 Start my ritual coach</a>
+        <button id="routineSave" class="ghost">💾 Save my ritual</button>
+        <a id="routineShop" class="ghost" target="_blank" rel="noopener">🛒 Shop my ritual</a>
+        <button id="routineClose" class="link-btn">Back to AR</button>
+      </div>
+    </div>
+  </section>
 
   <section id="result" class="sheet" hidden>
     <div class="card">

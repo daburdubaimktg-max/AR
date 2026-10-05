@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
+import { QUESTIONS, matchRoutine, SHOP_ALL } from "./products.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -15,7 +16,7 @@ const BRAND = {
   name: "ORS Olive Oil",
   tagline: "Nourished by Olive Oil",
   ctaText: "Shop now",
-  ctaUrl: "https://www.google.com/search?q=ORS+Olive+Oil",
+  ctaUrl: SHOP_ALL,
   targetSrc: "targets/logo.mind",
   shapesSrc: "targets/logo-shapes.json",
   colors: {
@@ -126,13 +127,14 @@ async function start() {
   const anchor = mindar.addAnchor(0);
   const show = new LogoReveal(shapes, camera);
   const game = new DropGame(show);
+  const match = new HairMatch(show);
   anchor.group.add(show.root);
-  if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { reveal: show, game });
+  if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { reveal: show, game, match });
 
   anchor.onTargetFound = () => {
     show.found();
     $("hint").hidden = true;
-    if (!game.running) $("cta").hidden = false;
+    if (!game.running && $("quiz").hidden && $("routine").hidden) $("cta").hidden = false;
     if (navigator.vibrate) navigator.vibrate(25);
   };
   anchor.onTargetLost = () => {
@@ -148,6 +150,7 @@ async function start() {
   });
 
   $("playBtn").onclick = () => { unlock(); game.start(); };
+  $("matchBtn").onclick = () => { unlock(); match.start(); };
   $("againBtn").onclick = () => { $("result").hidden = true; game.start(); };
   $("resultCloseBtn").onclick = () => { $("result").hidden = true; $("cta").hidden = false; };
   const snap = () => snapPhoto(mindar);
@@ -236,9 +239,12 @@ async function snapPhoto({ renderer, scene, camera }) {
   }, "image/jpeg", 0.92);
 }
 
-async function savePhoto() {
-  if (!photoBlob) return;
-  const file = new File([photoBlob], `ors-olive-oil-ar-${Date.now()}.jpg`, { type: "image/jpeg" });
+function savePhoto() {
+  if (photoBlob) shareFile(photoBlob, `ors-olive-oil-ar-${Date.now()}.jpg`);
+}
+
+async function shareFile(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: BRAND.name }); return; } catch (err) {
       if (err.name === "AbortError") return;
@@ -407,15 +413,15 @@ function makeFace() {
 
 // ---------- The reveal ----------
 // A cartoon "coming to life" (seconds after the logo is found):
-// (all at half speed: REVEAL_SPEED)
+// (about 3 seconds; scale with REVEAL_SPEED)
 //   0.0  the print trembles and rumbles
-//   0.7  the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
-//   1.0  each letter crouches and leaps out of the paper with its own trick
+//   0.3  the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
+//   0.5  each letter crouches and leaps out of the paper with its own trick
 //        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
-//   2.0  the olives pop off the page like popcorn, land, open their eyes and wink
-//   3.2  an olive-branch wreath grows up around the logo
-//   3.6  finale: the logo lifts off, the letters do a musical stadium wave, confetti
-//   4.3+ idle: drops + glint, olive hops across the letters, waves
+//   1.2  the olives pop off the page like popcorn, land, open their eyes and wink
+//   1.9  an olive-branch wreath grows up around the logo
+//   2.2  finale: the logo lifts off, the letters do a musical stadium wave, confetti
+//   2.8+ idle: drops + glint, olive hops across the letters, waves
 // Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
 // anywhere else to spin the logo.
 
@@ -500,12 +506,13 @@ class WreathBranch {
 }
 
 const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo", "flip"]; // O L I V E O I L
-const T_PILL = 0.7;
-const T_LETTERS = 1.0, LETTER_GAP = 0.22, CROUCH = 0.12, FLY = 0.75;
-const T_OLIVES = 2.0, OLIVE_GAP = 0.25, OLIVE_FLY = 0.55;
-const T_FINALE = 3.6;
-const READY_AT = 4.3;
-const REVEAL_SPEED = 0.5; // the coming-to-life plays at half speed (~8.6s); idle play is real-time
+const T_PILL = 0.3;
+const T_LETTERS = 0.5, LETTER_GAP = 0.11, CROUCH = 0.1, FLY = 0.55;
+const T_OLIVES = 1.2, OLIVE_GAP = 0.15, OLIVE_FLY = 0.45;
+const T_FINALE = 2.2;
+const READY_AT = 2.8;
+const REVEAL_SPEED = 1; // < 1 slows the coming-to-life down; idle play is always real-time
+const PRINT_FADE = 0.5;  // how much the printed logo is veiled once the 3D one is up
 
 class LogoReveal {
   constructor(shapes, camera) {
@@ -524,6 +531,24 @@ class LogoReveal {
     this.shimmerX = null;
     this.dropState = null;
     this.gameMode = false;
+
+    // Soft paper-coloured veil that fades the printed logo under the 3D one.
+    this.veil = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.06, ASPECT + 0.06),
+      new THREE.MeshBasicMaterial({
+        color: 0xf7f6f1, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+        alphaMap: canvasTexture(128, 128, (g) => {
+          const grad = g.createRadialGradient(64, 64, 30, 64, 64, 64);
+          grad.addColorStop(0, "#fff");
+          grad.addColorStop(0.75, "#fff");
+          grad.addColorStop(1, "#000");
+          g.fillStyle = grad;
+          g.fillRect(0, 0, 128, 128);
+        }),
+      }),
+    );
+    this.veil.position.z = 0.0005;
+    this.root.add(this.veil);
 
     // Soft shadow on the paper under the floating logo.
     this.shadow = new THREE.Mesh(
@@ -908,6 +933,7 @@ class LogoReveal {
 
     // --- Act 1: the print wakes up -------------------------------------
     this.cue(0.02, () => sfx.rumble());
+    this.veil.material.opacity = PRINT_FADE * smooth((a - T_LETTERS) / 0.8);
 
     // --- Act 2: the pill pops, ORS jumps out, the "O" squirts oil ------
     const pu = a - T_PILL;
@@ -925,7 +951,7 @@ class LogoReveal {
     this.cue(T_PILL, () => { sfx.bloop(0); this.emitDust(20, new THREE.Vector3(px(345, 78).x, px(345, 78).y, 0.05), 0.5, 0.6); });
     const pillFront = this.pill.userData.depth * pillSz;
     this.ors.forEach((m, j) => {
-      const t0 = T_PILL + 0.15 + j * 0.1;
+      const t0 = T_PILL + 0.1 + j * 0.07;
       const u = a - t0;
       const f = clamp01(u / 0.35);
       m.scale.z = u < 0 ? 0.02 : Math.max(0.02, easeOutBack(u / 0.15));
@@ -940,7 +966,7 @@ class LogoReveal {
     });
     this.orsTm.visible = a > T_PILL + 0.3;
     this.orsTm.position.z = pillFront + 0.001;
-    this.cue(T_PILL + 0.75, () => this.squirt());
+    this.cue(T_PILL + 0.5, () => this.squirt());
 
     // --- Act 3: the letters leap out one by one ------------------------
     this.letters.forEach((m, i) => {
@@ -982,18 +1008,18 @@ class LogoReveal {
       );
       m.rotation.set(p.rx, p.ry, p.rz + rot);
     });
-    this.tm.scale.z = Math.max(0.02, easeOutBack((a - (T_LETTERS + 8 * LETTER_GAP)) / 0.3));
+    this.tm.scale.z = Math.max(0.02, easeOutBack((a - (T_LETTERS + 8 * LETTER_GAP)) / 0.25));
 
     // --- Act 4: the sprig grows and the olives pop like popcorn --------
     this.stems.forEach((s, i) => {
-      const k = clamp01((a - 1.8 - i * 0.08) / 0.4);
+      const k = clamp01((a - 1.0 - i * 0.06) / 0.35);
       s.geometry.setDrawRange(0, Math.floor((s.userData.count * k) / 3) * 3);
     });
     this.olives.forEach((m, i) => this.updateOlive(m, i, a, time, dt));
     this.leaves.forEach((l, i) => {
-      const k = easeOutBack((a - 2.2 - i * 0.1) / 0.5);
+      const k = easeOutBack((a - 1.3 - i * 0.08) / 0.4);
       l.pivot.scale.setScalar(Math.max(0.001, k));
-      l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - 2.7);
+      l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - READY_AT);
     });
 
     // --- Act 5: finale — lift off, stadium wave, confetti --------------
@@ -1003,9 +1029,9 @@ class LogoReveal {
       this.wave(true);
     });
     this.cue(T_FINALE + 0.35, () => this.celebrate(45));
-    const wreathGrow = (a - (T_FINALE - 0.4)) / 1.4;
+    const wreathGrow = (a - (T_FINALE - 0.3)) / 1.0;
     this.wreath.forEach((b) => b.update(wreathGrow, time));
-    this.cue(T_FINALE - 0.4, () => sfx.whoosh());
+    this.cue(T_FINALE - 0.3, () => sfx.whoosh());
     const lift = smooth((a - T_FINALE) / 0.7);
     const float = Math.sin(time * 1.4) * 0.008 * lift;
     this.logo.position.z = 0.1 * lift + float;
@@ -1373,6 +1399,198 @@ class DropGame {
     s.celebrate(this.score >= 15 ? 140 : 80);
     s.spinLogo();
     sfx.fanfare();
+  }
+}
+
+// ---------- Hair Match: 3 questions -> a personal ORS Olive Oil ritual ----------
+
+function loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// Draw `text` wrapped to `maxW`; returns the y after the last line.
+function wrapText(g, text, x, y, maxW, lineH) {
+  let line = "";
+  for (const word of text.split(" ")) {
+    const test = line ? `${line} ${word}` : word;
+    if (g.measureText(test).width > maxW && line) {
+      g.fillText(line, x, y);
+      line = word;
+      y += lineH;
+    } else {
+      line = test;
+    }
+  }
+  if (line) g.fillText(line, x, y);
+  return y + lineH;
+}
+
+class HairMatch {
+  constructor(show) {
+    this.show = show;
+    this.routine = null;
+    $("quizClose").onclick = () => { $("quiz").hidden = true; $("cta").hidden = false; };
+    $("routineClose").onclick = () => { $("routine").hidden = true; $("cta").hidden = false; };
+    $("routineSave").onclick = () => this.save();
+  }
+
+  start() {
+    this.answers = {};
+    this.labels = {};
+    this.i = 0;
+    $("cta").hidden = true;
+    $("quiz").hidden = false;
+    this.show.cheer();
+    sfx.bloop(1);
+    this.render();
+  }
+
+  render() {
+    const q = QUESTIONS[this.i];
+    const bubble = $("quizQ");
+    bubble.textContent = q.olive;
+    bubble.style.animation = "none";
+    void bubble.offsetWidth;
+    bubble.style.animation = "";
+    $("quizStep").textContent = `Question ${this.i + 1} of ${QUESTIONS.length}`;
+    const opts = $("quizOpts");
+    opts.replaceChildren();
+    q.options.forEach((o, k) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.style.animationDelay = `${k * 0.05}s`;
+      const icon = document.createElement("span");
+      icon.textContent = o.emoji;
+      b.append(icon, o.label);
+      b.onclick = () => this.pick(q, o, b);
+      opts.append(b);
+    });
+  }
+
+  pick(q, o, button) {
+    if (this.busy) return;
+    this.busy = true;
+    button.classList.add("picked");
+    this.answers[q.id] = o.id;
+    this.labels[q.id] = o.label;
+    sfx.pop(this.i + 3);
+    this.show.cheer();
+    if (navigator.vibrate) navigator.vibrate(10);
+    setTimeout(() => {
+      this.busy = false;
+      this.i++;
+      if (this.i < QUESTIONS.length) this.render();
+      else this.finish();
+    }, 280);
+  }
+
+  finish() {
+    $("quiz").hidden = true;
+    const r = matchRoutine(this.answers);
+    this.routine = r;
+    const title = [this.labels.type, this.labels.concern, this.labels.style].join(" · ");
+    $("routineTitle").textContent = title;
+    $("routineFocus").textContent = r.focus;
+    const list = $("routineSteps");
+    list.replaceChildren();
+    for (const step of r.steps) {
+      const li = document.createElement("li");
+      const b = document.createElement("b");
+      b.textContent = step.title;
+      const a = document.createElement("a");
+      a.href = step.product.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = `ORS ${step.product.name}`;
+      const how = document.createElement("small");
+      how.textContent = step.how;
+      li.append(b, a, how);
+      list.append(li);
+    }
+    const params = new URLSearchParams(this.answers).toString();
+    $("routineCoach").href = `ritual.html?${params}`;
+    $("routineShop").href = r.steps[0].product.url;
+    try { localStorage.setItem("ors-ar-routine", JSON.stringify({ answers: this.answers, labels: this.labels })); } catch { /* ignore */ }
+    $("routine").hidden = false;
+    this.show.celebrate(50);
+    sfx.fanfare();
+  }
+
+  // A shareable "my ritual" card image.
+  async save() {
+    const r = this.routine;
+    if (!r) return;
+    const W = 1080, H = 1500;
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const g = c.getContext("2d");
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#2f6b3c");
+    bg.addColorStop(1, "#123a20");
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+
+    g.fillStyle = "#fffdf5";
+    g.beginPath();
+    g.roundRect(60, 60, W - 120, H - 120, 48);
+    g.fill();
+    try {
+      const logo = await loadImg("targets/logo.png");
+      const lw = 300, lh = (lw * logo.height) / logo.width;
+      g.drawImage(logo, (W - lw) / 2, 100, lw, lh);
+    } catch { /* optional */ }
+
+    g.textAlign = "center";
+    g.fillStyle = "#a51f36";
+    g.font = "800 58px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    g.fillText("My hair ritual", W / 2, 420);
+    g.fillStyle = "#4a5a3e";
+    g.font = "500 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    g.fillText([this.labels.type, this.labels.concern, this.labels.style].join("  ·  "), W / 2, 475);
+
+    g.textAlign = "left";
+    g.fillStyle = "#eef4e4";
+    g.beginPath();
+    g.roundRect(120, 515, W - 240, 130, 24);
+    g.fill();
+    g.fillStyle = "#2c4a1c";
+    g.font = "500 28px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    wrapText(g, r.focus, 150, 565, W - 300, 38);
+
+    let y = 720;
+    r.steps.forEach((step, i) => {
+      g.fillStyle = "#1e5631";
+      g.beginPath();
+      g.arc(150, y - 12, 30, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "#fff";
+      g.textAlign = "center";
+      g.font = "800 30px system-ui, sans-serif";
+      g.fillText(String(i + 1), 150, y - 1);
+      g.textAlign = "left";
+      g.fillStyle = "#a51f36";
+      g.font = "800 24px system-ui, sans-serif";
+      g.fillText(step.title.toUpperCase(), 205, y - 22);
+      g.fillStyle = "#1e2a16";
+      g.font = "700 32px system-ui, sans-serif";
+      const next = wrapText(g, `ORS ${step.product.name}`, 205, y + 16, W - 330, 38);
+      g.fillStyle = "#6b7b5e";
+      g.font = "400 26px system-ui, sans-serif";
+      y = wrapText(g, step.how, 205, next - 4, W - 330, 32) + 34;
+    });
+
+    g.textAlign = "center";
+    g.fillStyle = "#1e5631";
+    g.font = "600 28px system-ui, sans-serif";
+    g.fillText("Scan the ORS Olive Oil logo to start your ritual", W / 2, H - 110);
+
+    c.toBlob((blob) => shareFile(blob, "my-ors-olive-oil-ritual.png"), "image/png");
   }
 }
 

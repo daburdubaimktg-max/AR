@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#123a20" />
+  <title>ORS Ritual Coach</title>
+  <link rel="stylesheet" href="ritual.css" />
+</head>
+<body>
+  <main id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="canvas"></canvas>
+
+    <section id="intro" class="overlay">
+      <img class="logo-img" src="targets/logo.png" alt="ORS Olive Oil logo" />
+      <h1>Ritual coach</h1>
+      <p id="introFor"></p>
+      <ul id="introProducts" class="prod-list"></ul>
+      <p class="small">Grab your products and give yourself a few minutes. The camera only guides you on this phone: nothing is recorded or uploaded.</p>
+      <button id="startBtn" class="primary">Start my ritual</button>
+      <p id="startError" class="error" hidden></p>
+      <a class="link" href="logo.html">← Back to scan</a>
+    </section>
+
+    <header id="top" hidden>
+      <div id="dots" class="dots"></div>
+      <div class="top-right">
+        <button id="voiceBtn" class="round" aria-label="Voice guidance">🔈</button>
+        <div class="ring"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="track"/><circle id="ringArc" cx="22" cy="22" r="19" class="arc"/></svg><span id="secs">0</span></div>
+      </div>
+    </header>
+
+    <div id="faceHint" class="face-hint" hidden>Center your face in the frame</div>
+    <div id="palms" class="palms" hidden>🤲<span>💧</span></div>
+
+    <footer id="coach" hidden>
+      <div class="bubble"><span class="ollie" aria-hidden="true">🫒</span><div><b id="stepTitle"></b><p id="stepText"></p></div></div>
+      <div class="controls">
+        <button id="pauseBtn" class="ghost">⏸ Pause</button>
+        <button id="nextBtn" class="ghost">Next ›</button>
+      </div>
+    </footer>
+
+    <section id="done" class="overlay" hidden>
+      <div class="card">
+        <p class="kicker">Ritual complete</p>
+        <h2 id="doneTitle">Day 1, great start!</h2>
+        <div id="stamps" class="stamps"></div>
+        <p class="small" id="doneText">Come back tomorrow to keep your streak growing.</p>
+        <div class="col">
+          <a id="shopBtn" class="primary" target="_blank" rel="noopener">🛒 Restock my products</a>
+          <button id="againBtn" class="ghost">Do it again</button>
+          <a class="link" href="logo.html">Back to scan</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="ritual.js"></script>
+</body>
+</html>

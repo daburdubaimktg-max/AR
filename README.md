@@ -11,24 +11,23 @@ A browser-based AR sticker camera. No install, no build step — just open it on
 
 Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker), running entirely on-device. Nothing is uploaded.
 
-## Logo AR (`logo.html`)
+## Logo AR (`logo.html`): scan → hair ritual
 
-Point the camera at the **ORS Olive Oil** logo and the logo itself comes to life in 3D, like a cartoon (about 8 seconds; the speed is `REVEAL_SPEED` in `logo.js`):
+The scan is the doorway to something useful, not just an animation:
 
-1. **Wake-up:** the printed logo trembles and rumbles.
-2. **Pill pops:** the red pill bursts up, the O, R and S jump out of it (the R twirls), and the drop in the "O" squirts a fountain of golden oil.
-3. **Letters leap:** each letter crouches, then leaps out of the paper with its own trick (O rolls like a wheel, L backflips, I pogos, V cartwheels, E spins) and lands with a squash, each with a rising note.
-4. **Olive popcorn:** the olives pop off the page one by one, spin, land, open their eyes and wink.
-5. **Finale:** an olive-branch wreath grows up around the logo, the logo lifts off the paper, the letters do a musical stadium wave, the olives cheer and confetti falls.
+1. **Brand moment (about 3s):** point the camera at the ORS Olive Oil logo (on the jar, a shelf strip, a print ad) and it comes to life in 3D. The print fades under a soft veil, the pill pops, the letters leap out with tricks, the olives pop like popcorn and wake up, a wreath grows, and the logo floats. Timings are the `T_*` constants and `REVEAL_SPEED` in `logo.js`; `PRINT_FADE` sets how much the print is veiled.
+2. **✨ Hair Match:** the olive mascot asks 3 questions in the AR view (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), with each step linked to the product page. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
+3. **🧴 Ritual Coach (`ritual.html`):** a selfie-camera guide that tracks your face on-device and shows where and how to apply your matched products: a glowing path along the hairline, circular-massage guides on the temples, brush-stroke arrows for edges, a crown-to-ends path. It has timers, optional voice guidance and haptics. Finishing stamps a **7-day streak** card (kept on the phone), a hook for loyalty and rewards.
+4. **Extras:** tap letters and olives to play, the *Catch the oil* mini-game, and 📸 photo snaps.
 
-The timings and moves live in the constants above `class LogoReveal` in `logo.js` (`LETTER_MOVES`, `T_PILL`, `T_LETTERS`, …).
+Why this shape: scanning the pack becomes *personal advice → the right products → using them well → coming back*, which is discovery, cross-sell, usage frequency and retention, rather than a one-off animation.
 
-**Play with it**
-- **Olive buddies:** after the reveal the three olives open their eyes and smile; they blink and look around. Every so often one hops out and bounces across the tops of O‑L‑I‑V‑E (which squish as it lands), and the letters do a stadium wave.
-- **Musical letters:** tap a letter to make it jump and play a note, so O‑L‑I‑V‑E‑O‑I‑L is a little keyboard. Tap an olive and it giggles and flips. Tap the red pill to squirt oil, or tap anywhere else to spin the whole logo.
-- **Catch the oil (mini-game):** 25 seconds of golden drops raining from the ORS "O". Tap to catch them; bright bonus drops are worth +3, streaks build a combo, and a bottle fills as you score. It ends with olive-and-leaf confetti, a title and your best score (saved on the device). Tune it in `GAME` in `logo.js`.
-- **📸 Snap:** captures the camera view with the 3D logo and an ORS badge, ready to save or share.
-- **Sound:** pops, boings, drips and a chime, all synthesised in `sfx.js` (no audio files). Use 🔊 to mute. Image tracking uses [MindAR](https://github.com/hiukim/mind-ar-js); rendering uses three.js.
+**Content to review before launch** (all in `products.js`):
+- the product catalogue (names and links from orshaircare.com; swap links for your market's store),
+- the question wording, the step "how to" lines and the focus tips (kept plain: no product claims),
+- the mascot name "Ollie" (a placeholder).
+
+Product matching is a simple tag score in `matchRoutine()`, so it's easy to tune or replace with your own regimen rules. The Ritual Coach steps and timings are in `buildSteps()` in `ritual.js`.
 
 **How the 3D logo is made.** The letters and pill are traced from the real artwork, so they keep the exact brand letterforms:
 
@@ -37,7 +36,7 @@ The timings and moves live in the constants above `class LogoReveal` in `logo.js
 - The olive sprig is modelled in `logo.js` (`SPRIG`) to sit over the printed one.
 - `targets/logo.png` and `targets/logo.mind` are the tracking image and its compiled MindAR target.
 
-Edit the `BRAND` block in `logo.js` for the tagline, button text, shop link and colours. Add `?debug` to the URL to get `window.reveal` and `window.game` in the console (e.g. `reveal.age = 0` replays the reveal, `reveal.startHop()` sends an olive hopping).
+Add `?debug` to the URL to get `window.reveal`, `window.game` and `window.match` in the console (e.g. `reveal.age = 0` replays the reveal).
 
 ## Try it
 
@@ -61,6 +60,8 @@ python3 -m http.server 8000
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
 | `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
 | `sfx.js` | Synthesised sound effects (Web Audio) |
+| `products.js` | ORS Olive Oil catalogue, Hair Match questions and routine matching |
+| `ritual.html`, `ritual.css`, `ritual.js` | Ritual Coach: face-tracked application guide + streak |
 | `targets/` | Logo artwork, traced shapes and the MindAR tracking target |
 | `tools/vectorize_logo.py` | Traces the logo artwork into `targets/logo-shapes.json` |
 
