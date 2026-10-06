@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
-import { QUESTIONS, matchRoutine, SHOP_ALL } from "./products.js";
+import { QUESTIONS, matchRoutine } from "./products.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -15,8 +15,6 @@ const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-ima
 const BRAND = {
   name: "ORS Olive Oil",
   tagline: "Nourished by Olive Oil",
-  ctaText: "Shop now",
-  ctaUrl: SHOP_ALL,
   targetSrc: "targets/logo.mind",
   shapesSrc: "targets/logo-shapes.json",
   colors: {
@@ -71,8 +69,6 @@ const $ = (id) => document.getElementById(id);
 function init() {
   $("brandTitle").textContent = BRAND.name;
   $("tagline").textContent = BRAND.tagline;
-  $("shopBtn").textContent = BRAND.ctaText;
-  $("shopBtn").href = BRAND.ctaUrl;
   $("startBtn").onclick = start;
   const syncMute = () => { $("muteBtn").textContent = isMuted() ? "🔇" : "🔊"; };
   syncMute();
@@ -124,6 +120,16 @@ async function start() {
   key.position.set(-0.6, 1, 1.5);
   scene.add(key);
 
+  let ctaArmed = false;
+  let tipShown = false;
+  const showMenu = () => {
+    $("cta").hidden = false;
+    if (!tipShown) {
+      tipShown = true;
+      setTimeout(() => toast("Tip: tap the letters and olives 🫒"), 1200);
+    }
+  };
+
   const anchor = mindar.addAnchor(0);
   const show = new LogoReveal(shapes, camera);
   const game = new DropGame(show);
@@ -134,7 +140,7 @@ async function start() {
   anchor.onTargetFound = () => {
     show.found();
     $("hint").hidden = true;
-    if (!game.running && $("quiz").hidden && $("routine").hidden) $("cta").hidden = false;
+    ctaArmed = true; // the menu slides up once the reveal finishes
     if (navigator.vibrate) navigator.vibrate(25);
   };
   anchor.onTargetLost = () => {
@@ -177,8 +183,25 @@ async function start() {
     const dt = Math.min(clock.getDelta(), 0.05);
     game.update(dt);
     show.update(dt, clock.elapsedTime);
+    if (ctaArmed && show.ready) {
+      ctaArmed = false;
+      const busy = game.running || !$("quiz").hidden || !$("routine").hidden || !$("result").hidden;
+      if (!busy) showMenu();
+    }
     renderer.render(scene, camera);
   });
+}
+
+// A small message that floats in and fades away.
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.hidden = false;
+  el.style.animation = "none";
+  void el.offsetWidth;
+  el.style.animation = "";
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { el.hidden = true; }, 3200);
 }
 
 // ---------- Photo ----------
@@ -413,15 +436,16 @@ function makeFace() {
 
 // ---------- The reveal ----------
 // A cartoon "coming to life" (seconds after the logo is found):
-// (about 3 seconds; scale with REVEAL_SPEED)
+// (about 4 seconds; scale with REVEAL_SPEED)
 //   0.0  the print trembles and rumbles
-//   0.3  the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
-//   0.5  each letter crouches and leaps out of the paper with its own trick
+//   0.35 the red pill pops up; O, R, S jump out of it; the "O" squirts golden oil
+//   0.6  each letter crouches and leaps out of the paper with its own trick
 //        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
-//   1.2  the olives pop off the page like popcorn, land, open their eyes and wink
-//   1.9  an olive-branch wreath grows up around the logo
-//   2.2  finale: the logo lifts off, the letters do a musical stadium wave, confetti
-//   2.8+ idle: drops + glint, olive hops across the letters, waves
+//   1.5  the olives pop off the page like popcorn, land, open their eyes and wink
+//   2.2  an olive-branch wreath grows up around the logo
+//   2.5  finale: the whole logo zooms up off the page, swings round and grows to ~1.4x the
+//        print; the letters do a musical stadium wave; confetti
+//   4.0+ menu slides up; idle: drops + glint, olive hops across the letters, waves
 // Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
 // anywhere else to spin the logo.
 
@@ -506,11 +530,14 @@ class WreathBranch {
 }
 
 const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo", "flip"]; // O L I V E O I L
-const T_PILL = 0.3;
-const T_LETTERS = 0.5, LETTER_GAP = 0.11, CROUCH = 0.1, FLY = 0.55;
-const T_OLIVES = 1.2, OLIVE_GAP = 0.15, OLIVE_FLY = 0.45;
-const T_FINALE = 2.2;
-const READY_AT = 2.8;
+const T_PILL = 0.35;
+const T_LETTERS = 0.6, LETTER_GAP = 0.13, CROUCH = 0.1, FLY = 0.6;
+const T_OLIVES = 1.5, OLIVE_GAP = 0.17, OLIVE_FLY = 0.5;
+const T_FINALE = 2.5;   // the whole logo zooms up off the page
+const ZOOM_TIME = 1.1;
+const ZOOM_SCALE = 1.4; // how much bigger than the print it ends up
+const ZOOM_LIFT = 0.28; // how far off the page it floats (logo widths)
+const READY_AT = 4.0;
 const REVEAL_SPEED = 1; // < 1 slows the coming-to-life down; idle play is always real-time
 const PRINT_FADE = 0.5;  // how much the printed logo is veiled once the 3D one is up
 
@@ -1012,12 +1039,12 @@ class LogoReveal {
 
     // --- Act 4: the sprig grows and the olives pop like popcorn --------
     this.stems.forEach((s, i) => {
-      const k = clamp01((a - 1.0 - i * 0.06) / 0.35);
+      const k = clamp01((a - 1.3 - i * 0.06) / 0.35);
       s.geometry.setDrawRange(0, Math.floor((s.userData.count * k) / 3) * 3);
     });
     this.olives.forEach((m, i) => this.updateOlive(m, i, a, time, dt));
     this.leaves.forEach((l, i) => {
-      const k = easeOutBack((a - 1.3 - i * 0.08) / 0.4);
+      const k = easeOutBack((a - 1.6 - i * 0.08) / 0.4);
       l.pivot.scale.setScalar(Math.max(0.001, k));
       l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - READY_AT);
     });
@@ -1028,13 +1055,19 @@ class LogoReveal {
       this.emitDust(70, new THREE.Vector3(0, 0, 0.08), 1.1);
       this.wave(true);
     });
-    this.cue(T_FINALE + 0.35, () => this.celebrate(45));
+    this.cue(T_FINALE + 0.6, () => this.celebrate(45));
     const wreathGrow = (a - (T_FINALE - 0.3)) / 1.0;
     this.wreath.forEach((b) => b.update(wreathGrow, time));
     this.cue(T_FINALE - 0.3, () => sfx.whoosh());
-    const lift = smooth((a - T_FINALE) / 0.7);
-    const float = Math.sin(time * 1.4) * 0.008 * lift;
-    this.logo.position.z = 0.1 * lift + float;
+    this.cue(T_FINALE + 0.05, () => sfx.whoosh());
+    // Zoom: rockets up off the page with a swing, overshoots, settles bigger than the print.
+    const zt = (a - T_FINALE) / ZOOM_TIME;
+    const lift = smooth(zt);
+    const pop = easeOutBack(zt);
+    const float = Math.sin(time * 1.4) * 0.01 * lift;
+    this.logo.position.z = ZOOM_LIFT * pop + float;
+    this.logo.scale.setScalar(1 + (ZOOM_SCALE - 1) * pop);
+    const swing = Math.sin(Math.PI * clamp01(zt)) * 0.9 * (1 - clamp01(zt) * 0.3);
     let spinY = 0;
     if (this.spin) {
       this.spin.t += dt / 1.1;
@@ -1042,11 +1075,11 @@ class LogoReveal {
       if (this.spin.t >= 1) this.spin = null;
     }
     const sway = this.gameMode ? 0.4 : 1; // calmer during the game
-    this.logo.rotation.x = Math.sin(time * 0.7) * 0.12 * lift * sway;
-    this.logo.rotation.y = Math.sin(time * 0.5) * 0.18 * lift * sway + spinY;
-    this.shadow.material.opacity = 0.32 * lift;
-    this.shadow.position.set(0.025 * lift, -0.04 * lift, 0.001);
-    this.shadow.scale.setScalar(1 + 0.08 * lift + float);
+    this.logo.rotation.x = Math.sin(time * 0.7) * 0.12 * lift * sway - swing * 0.25;
+    this.logo.rotation.y = Math.sin(time * 0.5) * 0.18 * lift * sway + spinY + swing;
+    this.shadow.material.opacity = 0.3 * lift;
+    this.shadow.position.set(0.04 * lift, -0.06 * lift, 0.001);
+    this.shadow.scale.setScalar(1 + 0.3 * lift + float);
 
     // --- Idle: drop + glint, olive hops, waves -------------------------
     if (this.active && !this.gameMode && a > READY_AT) {
@@ -1502,10 +1535,8 @@ class HairMatch {
       const li = document.createElement("li");
       const b = document.createElement("b");
       b.textContent = step.title;
-      const a = document.createElement("a");
-      a.href = step.product.url;
-      a.target = "_blank";
-      a.rel = "noopener";
+      const a = document.createElement("span");
+      a.className = "prod";
       a.textContent = `ORS ${step.product.name}`;
       const how = document.createElement("small");
       how.textContent = step.how;
@@ -1514,7 +1545,6 @@ class HairMatch {
     }
     const params = new URLSearchParams(this.answers).toString();
     $("routineCoach").href = `ritual.html?${params}`;
-    $("routineShop").href = r.steps[0].product.url;
     try { localStorage.setItem("ors-ar-routine", JSON.stringify({ answers: this.answers, labels: this.labels })); } catch { /* ignore */ }
     $("routine").hidden = false;
     this.show.celebrate(50);

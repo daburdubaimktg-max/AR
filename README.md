@@ -15,15 +15,15 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 The scan is the doorway to something useful, not just an animation:
 
-1. **Brand moment (about 3s):** point the camera at the ORS Olive Oil logo (on the jar, a shelf strip, a print ad) and it comes to life in 3D. The print fades under a soft veil, the pill pops, the letters leap out with tricks, the olives pop like popcorn and wake up, a wreath grows, and the logo floats. Timings are the `T_*` constants and `REVEAL_SPEED` in `logo.js`; `PRINT_FADE` sets how much the print is veiled.
-2. **✨ Hair Match:** the olive mascot asks 3 questions in the AR view (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), with each step linked to the product page. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
+1. **Brand moment (about 4s):** point the camera at the ORS Olive Oil logo (on the jar, a shelf strip, a print ad) and it comes to life in 3D. The print fades under a soft veil, the pill pops, the letters leap out with tricks, the olives pop like popcorn and wake up, a wreath grows, and the whole logo zooms up off the page and floats, bigger than the print. Timings are the `T_*` constants and `REVEAL_SPEED` in `logo.js`; `PRINT_FADE` sets how much the print is veiled.
+2. **✨ Hair Match:** the olive mascot asks 3 questions in the AR view (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), using real ORS Olive Oil products. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
 3. **🧴 Ritual Coach (`ritual.html`):** a selfie-camera guide that tracks your face on-device and shows where and how to apply your matched products: a glowing path along the hairline, circular-massage guides on the temples, brush-stroke arrows for edges, a crown-to-ends path. It has timers, optional voice guidance and haptics. Finishing stamps a **7-day streak** card (kept on the phone), a hook for loyalty and rewards.
 4. **Extras:** tap letters and olives to play, the *Catch the oil* mini-game, and 📸 photo snaps.
 
 Why this shape: scanning the pack becomes *personal advice → the right products → using them well → coming back*, which is discovery, cross-sell, usage frequency and retention, rather than a one-off animation.
 
 **Content to review before launch** (all in `products.js`):
-- the product catalogue (names and links from orshaircare.com; swap links for your market's store),
+- the product catalogue (names from orshaircare.com; links are kept in `products.js` for later but not shown, as there is no shopping in this version),
 - the question wording, the step "how to" lines and the focus tips (kept plain: no product claims),
 - the mascot name "Ollie" (a placeholder).
 

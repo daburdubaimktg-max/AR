@@ -2,7 +2,7 @@
 // apply your products, step by step, using on-device face tracking.
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 import { sfx, unlock } from "./sfx.js";
-import { matchRoutine, SHOP_ALL } from "./products.js";
+import { matchRoutine } from "./products.js";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
@@ -74,7 +74,6 @@ for (const s of routine.steps.filter((x) => x.id === "moisturise" || x.id === "e
   li.append(b, `ORS ${s.product.name}`);
   $("introProducts").append(li);
 }
-$("shopBtn").href = moist ? moist.url : SHOP_ALL;
 
 // ---------- Camera + face tracking ----------
 

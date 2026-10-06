@@ -129,3 +129,15 @@ button, label { font: inherit; color: inherit; cursor: pointer; }
 .steps small { color: #6b7b5e; font-size: 12px; }
 .routine-card .primary { text-align: center; }
 .routine-card a.ghost { text-align: center; }
+
+/* ---- simplified menu ---- */
+#cta { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 40px;
+  background: linear-gradient(transparent, rgba(8,22,10,.75) 45%); }
+#cta .tagline { font-size: 17px; margin-bottom: 8px; }
+#cta .primary.big { width: min(320px, 100%); margin: 0; }
+#cta .link-btn { font-size: 14px; }
+.toast { position: fixed; top: calc(env(safe-area-inset-top) + 70px); left: 50%; transform: translateX(-50%); z-index: 7;
+  background: #fffdf5; color: #1e2a16; font-weight: 600; font-size: 14px; padding: 10px 16px; border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3); white-space: nowrap; animation: toast 3.2s ease forwards; pointer-events: none; }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, -10px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+.steps .prod { color: #1e2a16; font-weight: 700; display: block; margin: 2px 0; }
