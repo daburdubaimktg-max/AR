@@ -15,10 +15,10 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 
 The scan is the doorway to something useful, not just an animation:
 
-1. **Brand moment (about 4s):** point the camera at the ORS Olive Oil logo (on the jar, a shelf strip, a print ad) and it comes to life in 3D. The print fades under a soft veil, the pill pops, the letters leap out with tricks, the olives pop like popcorn and wake up, a wreath grows, and the whole logo zooms up off the page and floats, bigger than the print. Timings are the `T_*` constants and `REVEAL_SPEED` in `logo.js`; `PRINT_FADE` sets how much the print is veiled.
+1. **Brand moment (about 5s), built for a big logo on the stall wall:** the letters leap out of the print, then a golden iris opens the wall into an **olive-grove portal** (`portal.js`): trees pop up, a giant ORS jar pours a river of liquid gold that spills over the frame into the real stall, and leaves and golden butterflies fly out. The 3D logo flies out at you and settles as a sign floating in front of the portal, framed by the olive wreath. Tap the jar for a gush of gold or a tree to shake its olives loose. Timings are the `T_*` constants in `logo.js`; the sign's position is `SIGN`.
 2. **✨ Hair Match:** the olive mascot asks 3 questions in the AR view (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), using real ORS Olive Oil products. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
-3. **🧴 Ritual Coach (`ritual.html`):** a selfie-camera guide that tracks your face on-device and shows where and how to apply your matched products: a glowing path along the hairline, circular-massage guides on the temples, brush-stroke arrows for edges, a crown-to-ends path. It has timers, optional voice guidance and haptics. Finishing stamps a **7-day streak** card (kept on the phone), a hook for loyalty and rewards.
-4. **Extras:** tap letters and olives to play, the *Catch the oil* mini-game, and 📸 photo snaps.
+3. **🧴 Ritual Coach (`ritual.html`):** a selfie-camera guide that tracks your face on-device and walks through a practical at-home moisture routine with your matched products: prep (damp hair) → section into 4 (part lines drawn on your head) → moisturise mid-lengths to ends (arrows down the lengths) → fingertip scalp massage (circles on the temples) → edges (brush strokes) → finish & protect (try on a satin bonnet). The wording adapts to hair type, need and style. It has timers, optional voice guidance and haptics. Finishing stamps a **7-day streak** card (kept on the phone), a hook for loyalty and rewards.
+4. **Extras:** tap letters and olives to play, the *Catch the oil* mini-game (with a how-to card and 3-2-1 countdown), and 📸 photo snaps.
 
 Why this shape: scanning the pack becomes *personal advice → the right products → using them well → coming back*, which is discovery, cross-sell, usage frequency and retention, rather than a one-off animation.
 
@@ -61,6 +61,7 @@ python3 -m http.server 8000
 | `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
 | `sfx.js` | Synthesised sound effects (Web Audio) |
 | `products.js` | ORS Olive Oil catalogue, Hair Match questions and routine matching |
+| `portal.js` | The olive-grove portal behind the wall logo |
 | `ritual.html`, `ritual.css`, `ritual.js` | Ritual Coach: face-tracked application guide + streak |
 | `targets/` | Logo artwork, traced shapes and the MindAR tracking target |
 | `tools/vectorize_logo.py` | Traces the logo artwork into `targets/logo-shapes.json` |

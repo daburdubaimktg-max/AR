@@ -44,7 +44,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .face-hint { position: fixed; top: 40%; left: 50%; transform: translateX(-50%); z-index: 4; background: var(--glass);
   padding: 8px 16px; border-radius: 999px; }
 .palms { position: fixed; top: 34%; left: 50%; transform: translateX(-50%); z-index: 4; font-size: 88px; animation: rub .5s ease-in-out infinite alternate; }
-.palms span { position: absolute; top: -26px; left: 50%; font-size: 34px; animation: drip 1.2s ease-in infinite; }
 @keyframes rub { from { transform: translateX(-56%) rotate(-6deg); } to { transform: translateX(-44%) rotate(6deg); } }
 @keyframes drip { from { transform: translateY(-20px); opacity: 0; } 50% { opacity: 1; } to { transform: translateY(30px); opacity: 0; } }
 

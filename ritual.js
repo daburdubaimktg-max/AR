@@ -38,26 +38,50 @@ const byStep = Object.fromEntries(routine.steps.map((s) => [s.id, s.product]));
 const moist = byStep.moisturise;
 const edge = byStep.edges;
 
+// A practical at-home moisture routine, tailored by the Hair Match answers.
+// Keep instructions plain and practical (no product claims).
 function buildSteps() {
-  const c = answers ? answers.concern : "dryness";
-  const steps = [
-    { zone: "palms", title: "Warm it up", secs: 10,
-      text: `Rub a small amount of ORS ${moist.name} between your palms.` },
-    { zone: "hairline", title: "Along your hairline", secs: 25,
-      text: "Work it in along your hairline, section by section. Follow the glowing line." },
-    { zone: "temples", title: "Temple massage", secs: c === "scalp" ? 40 : 25,
-      text: c === "scalp"
-        ? "Massage your scalp at the temples in slow circles with your fingertips. Keep it gentle."
-        : "Massage your temples in small, slow circles with your fingertips." },
-  ];
+  const a = answers || { type: "coily", concern: "dryness", style: "washngo" };
+  const style = a.style, concern = a.concern;
+  const lotion = `ORS ${moist.name}`;
+  const steps = [];
+
+  steps.push({ zone: "hands", icon: "💦", title: "Prep", secs: 15,
+    text: style === "washngo"
+      ? "Start with freshly washed, soaking-wet hair. Keep a spray bottle of water nearby."
+      : style === "protective"
+        ? "Start with clean braids, twists or locs. Lightly mist them with water so they're just damp."
+        : "Start with clean hair. Lightly mist it with water so it's slightly damp, not wet." });
+
+  steps.push({ zone: "part", title: "Section", secs: 20,
+    text: style === "protective"
+      ? "Work in 4 zones: front left, front right, back left, back right, following the guide lines."
+      : "Part your hair down the middle, then from ear to ear, to make 4 sections. Clip or twist each one."
+        + (concern === "breakage" ? " Finger-detangle each section gently, starting from the ends." : "") });
+
+  steps.push({ zone: "ends", title: "Moisturise", secs: 35,
+    text: style === "protective"
+      ? `Take a coin-sized amount of ${lotion}, warm it in your palms and smooth it down the length of your braids, zone by zone.`
+      : style === "straight" || style === "relaxed" || a.type === "relaxed"
+        ? `Take a small amount of ${lotion} and work it through one section at a time, mainly on the mid-lengths and ends. Keep the roots light.`
+        : `Take a coin-sized amount of ${lotion} per section and work it from mid-lengths to ends. The ends need it most.` });
+
+  steps.push({ zone: "temples", title: "Scalp massage", secs: concern === "scalp" ? 45 : 30,
+    text: (concern === "scalp" || style === "protective"
+      ? "Dab a little product on your fingertips and apply it along your parts. Then m"
+      : "M") + "assage your scalp with your fingertips (not your nails) in small circles, from your temples back to your crown." });
+
   if (edge) {
-    steps.push({ zone: "edges", title: "Lay your edges", secs: 20,
-      text: `Add a little ORS ${edge.name} and smooth your edges with a soft brush, following the arrows.` });
+    steps.push({ zone: "edges", title: "Edges", secs: 20,
+      text: `Apply a small amount of ORS ${edge.name} to your edges and brush them into place with a soft brush. Less is more.` });
   }
-  steps.push({ zone: "crown", title: "Crown to ends", secs: 25,
-    text: c === "breakage"
-      ? "Move back to your crown, then work down to your ends. Detangle gently from the ends up."
-      : "Move back to your crown, then smooth it down through to your ends." });
+
+  steps.push({ zone: "bonnet", title: "Finish & protect", secs: 15,
+    text: style === "washngo"
+      ? "Scrunch gently and let it air-dry without touching. At night, cover your hair with a satin bonnet."
+      : style === "protective"
+        ? "Smooth down any frizz along the lengths. At night, protect your style with a satin scarf or bonnet."
+        : "Wrap or pin your hair and cover it with a satin scarf or bonnet at night to keep it smooth." });
   return steps;
 }
 const STEPS = buildSteps();
@@ -202,7 +226,7 @@ function sparkles(pts, t, n = 6) {
 }
 
 function drawGuide(zone, t) {
-  if (!face || zone === "palms") return;
+  if (!face || zone === "hands") return;
   const g = geom();
   ctx.save();
   if (zone === "hairline") {
@@ -253,38 +277,88 @@ function drawGuide(zone, t) {
       }
       ctx.globalAlpha = 1;
     }
-  } else if (zone === "crown") {
-    // Up and over the top of the head, then down the sides to the ends.
-    const top = hairline(g, 0.06)[6];
-    const over = { x: top.x + g.up.x * g.fh * 0.35, y: top.y + g.up.y * g.fh * 0.35 };
-    glow();
-    ctx.setLineDash([10 * dpr, 10 * dpr]);
-    ctx.lineDashOffset = -t * 40 * dpr;
+  } else if (zone === "part") {
+    // Middle part up over the head + an ear-to-ear part across the top.
+    const hl = hairline(g, 0.035);
+    const top = hl[6];
+    const crown = { x: top.x + g.up.x * g.fh * 0.42, y: top.y + g.up.y * g.fh * 0.42 };
+    glow("#ffffff", 4);
+    ctx.setLineDash([10 * dpr, 8 * dpr]);
+    ctx.lineDashOffset = -t * 30 * dpr;
     ctx.beginPath();
     ctx.moveTo(top.x, top.y);
-    ctx.lineTo(over.x, over.y);
+    ctx.lineTo(crown.x, crown.y);
+    ctx.stroke();
+    const L = hl[0], R = hl[hl.length - 1];
+    const lift = (p, k) => ({ x: p.x + g.up.x * g.fh * k, y: p.y + g.up.y * g.fh * k });
+    smoothPath([L, lift(hl[3], 0.3), lift(top, 0.36), lift(hl[9], 0.3), R]);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "#ffd75e";
-    arrowHead(over.x, over.y, Math.atan2(g.up.y, g.up.x), 12 * dpr);
     ctx.shadowBlur = 0;
-    ctx.font = `700 ${14 * dpr}px system-ui, sans-serif`;
+    ctx.font = `800 ${16 * dpr}px system-ui, sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillStyle = "#fff";
-    ctx.fillText("crown", over.x, over.y - 16 * dpr);
+    ctx.fillStyle = "#ffd75e";
+    const label = (p, txt) => ctx.fillText(txt, p.x, p.y);
+    label(lift(hl[3], 0.16), "1");
+    label(lift(hl[9], 0.16), "2");
+    label(lift(hl[2], 0.42), "3");
+    label(lift(hl[10], 0.42), "4");
+  } else if (zone === "ends") {
+    // Down the lengths on both sides, mid-lengths to ends.
     for (const i of CHEEKS) {
       const c = P(i);
-      const s = { x: c.x - g.up.x * g.fh * 0.1, y: c.y - g.up.y * g.fh * 0.1 };
-      const e = { x: c.x - g.up.x * g.fh * 0.9, y: c.y - g.up.y * g.fh * 0.9 };
+      const s0 = { x: c.x - g.up.x * g.fh * -0.1, y: c.y - g.up.y * g.fh * -0.1 };
+      const e = { x: c.x - g.up.x * g.fh * 0.85, y: c.y - g.up.y * g.fh * 0.85 };
       const outward = i === CHEEKS[0] ? 1 : -1;
-      const pts = [s, { x: (s.x + e.x) / 2 + outward * g.fh * 0.12, y: (s.y + e.y) / 2 }, e];
+      const pts = [s0, { x: (s0.x + e.x) / 2 + outward * g.fh * 0.12, y: (s0.y + e.y) / 2 }, e];
       glow();
       ctx.setLineDash([10 * dpr, 10 * dpr]);
+      ctx.lineDashOffset = -t * 40 * dpr;
       smoothPath(pts);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.fillStyle = "#ffd75e";
+      arrowHead(e.x, e.y, Math.atan2(-g.up.y, -g.up.x), 11 * dpr);
       sparkles(pts, t, 3);
     }
+  } else if (zone === "bonnet") {
+    // Try on a satin bonnet: a glossy dome over the head, edged along the hairline.
+    const hl = hairline(g, 0.06);
+    const top = hl[6];
+    const peak = { x: top.x + g.up.x * g.fh * 0.5, y: top.y + g.up.y * g.fh * 0.5 };
+    const L = hl[0], R = hl[hl.length - 1];
+    const out = (p, k) => ({ x: p.x + (p.x - top.x) * k, y: p.y + (p.y - top.y) * k });
+    ctx.beginPath();
+    ctx.moveTo(out(L, 0.12).x, out(L, 0.12).y);
+    ctx.bezierCurveTo(L.x + g.up.x * g.fh * 0.55 - (top.x - L.x) * 0.3, L.y + g.up.y * g.fh * 0.55,
+      peak.x - (R.x - L.x) * 0.35, peak.y, peak.x, peak.y);
+    ctx.bezierCurveTo(peak.x + (R.x - L.x) * 0.35, peak.y,
+      R.x + g.up.x * g.fh * 0.55 + (R.x - top.x) * 0.3, R.y + g.up.y * g.fh * 0.55, out(R, 0.12).x, out(R, 0.12).y);
+    for (let i = hl.length - 1; i >= 0; i--) ctx.lineTo(hl[i].x, hl[i].y);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(L.x, peak.y, R.x, top.y);
+    grad.addColorStop(0, "#7d1428");
+    grad.addColorStop(0.45 + Math.sin(t * 1.5) * 0.08, "#d8475f");
+    grad.addColorStop(1, "#8f1a30");
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 0.92;
+    ctx.shadowColor = "rgba(0,0,0,.35)";
+    ctx.shadowBlur = 14 * dpr;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    // Gathered elastic band along the hairline.
+    ctx.strokeStyle = "#5e0f1f";
+    ctx.lineWidth = 9 * dpr;
+    ctx.lineCap = "round";
+    smoothPath(hl);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,.25)";
+    ctx.lineWidth = 2 * dpr;
+    ctx.setLineDash([3 * dpr, 5 * dpr]);
+    smoothPath(hl);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
   ctx.restore();
 }
@@ -331,7 +405,8 @@ function beginStep(i) {
   bubble.style.animation = "none";
   void bubble.offsetWidth;
   bubble.style.animation = "";
-  $("palms").hidden = s.zone !== "palms";
+  $("palms").hidden = !s.icon;
+  if (s.icon) $("palmsIcon").textContent = s.icon;
   renderDots();
   speak(s.text);
   sfx.chime();
@@ -443,7 +518,7 @@ $("startBtn").onclick = async () => {
     if (running) {
       const s = STEPS[stepIdx];
       drawGuide(s.zone, t);
-      $("faceHint").hidden = !!face || s.zone === "palms" || !landmarker;
+      $("faceHint").hidden = !!face || s.zone === "hands" || !landmarker;
       if (!paused) {
         remaining -= dt;
         if (remaining <= 0) nextStep();

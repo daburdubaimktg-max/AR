@@ -141,3 +141,12 @@ button, label { font: inherit; color: inherit; cursor: pointer; }
   box-shadow: 0 6px 20px rgba(0,0,0,.3); white-space: nowrap; animation: toast 3.2s ease forwards; pointer-events: none; }
 @keyframes toast { 0% { opacity: 0; transform: translate(-50%, -10px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .steps .prod { color: #1e2a16; font-weight: 700; display: block; margin: 2px 0; }
+
+/* ---- game how-to ---- */
+.howto-list { list-style: none; padding: 0; margin: 10px 0 8px; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.howto-list li { display: flex; gap: 12px; align-items: center; background: #f3f6ec; border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+.howto-list span { font-size: 24px; }
+.countdown { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; pointer-events: none;
+  font-size: 120px; font-weight: 900; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.countdown.tick { animation: count .8s ease-out; }
+@keyframes count { from { transform: scale(1.8); opacity: 0; } 30% { opacity: 1; } to { transform: scale(.9); opacity: .9; } }

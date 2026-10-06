@@ -36,7 +36,7 @@
 
   <div id="hint" hidden>
     <div class="scan-frame"></div>
-    <p>Point your camera at the ORS Olive Oil logo</p>
+    <p>Point your camera at the big ORS Olive Oil logo</p>
   </div>
 
   <div id="topbar" hidden>
@@ -78,6 +78,26 @@
       </div>
     </div>
   </section>
+
+  <section id="howto" class="sheet" hidden>
+    <div class="card">
+      <p class="result-kicker">Mini-game</p>
+      <h2>Catch the oil</h2>
+      <ul class="howto-list">
+        <li><span>👆</span><div><b>Tap the golden drops</b> before they fall past the logo.</div></li>
+        <li><span>✨</span><div><b>Big glowing drops</b> are worth <b>+3</b>.</div></li>
+        <li><span>🔥</span><div><b>Catch in a row</b> to build a combo. Missing a drop resets it.</div></li>
+        <li><span>⏱️</span><div>You have <b id="howtoSecs">25</b> seconds. Fill the bottle!</div></li>
+      </ul>
+      <p class="small">Keep the logo in view. The game pauses if you lose it.</p>
+      <div class="col">
+        <button id="howtoGo" class="primary">I'm ready!</button>
+        <button id="howtoClose" class="link-btn">Not now</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="countdown" class="countdown" hidden></div>
 
   <section id="result" class="sheet" hidden>
     <div class="card">

@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
 import { QUESTIONS, matchRoutine } from "./products.js";
+import { OliveGrovePortal } from "./portal.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -155,9 +156,13 @@ async function start() {
     else show.tap(p);
   });
 
-  $("playBtn").onclick = () => { unlock(); game.start(); };
+  // Game: rules first, then a 3-2-1 countdown.
+  $("howtoSecs").textContent = GAME.seconds;
+  $("playBtn").onclick = () => { unlock(); $("cta").hidden = true; $("howto").hidden = false; };
+  $("howtoClose").onclick = () => { $("howto").hidden = true; $("cta").hidden = false; };
+  $("howtoGo").onclick = () => { $("howto").hidden = true; countdown(() => game.start()); };
   $("matchBtn").onclick = () => { unlock(); match.start(); };
-  $("againBtn").onclick = () => { $("result").hidden = true; game.start(); };
+  $("againBtn").onclick = () => { $("result").hidden = true; countdown(() => game.start()); };
   $("resultCloseBtn").onclick = () => { $("result").hidden = true; $("cta").hidden = false; };
   const snap = () => snapPhoto(mindar);
   $("snapBtn").onclick = snap;
@@ -185,11 +190,30 @@ async function start() {
     show.update(dt, clock.elapsedTime);
     if (ctaArmed && show.ready) {
       ctaArmed = false;
-      const busy = game.running || !$("quiz").hidden || !$("routine").hidden || !$("result").hidden;
+      const busy = game.running || !$("quiz").hidden || !$("routine").hidden || !$("result").hidden || !$("howto").hidden;
       if (!busy) showMenu();
     }
     renderer.render(scene, camera);
   });
+}
+
+// 3-2-1-Go! then `fn`.
+function countdown(fn) {
+  const el = $("countdown");
+  const steps = ["3", "2", "1", "Go!"];
+  let i = 0;
+  el.hidden = false;
+  const tick = () => {
+    if (i >= steps.length) { el.hidden = true; fn(); return; }
+    el.textContent = steps[i];
+    el.classList.remove("tick");
+    void el.offsetWidth;
+    el.classList.add("tick");
+    if (i < 3) sfx.tick(); else sfx.chime();
+    i++;
+    setTimeout(tick, i === steps.length ? 500 : 750);
+  };
+  tick();
 }
 
 // A small message that floats in and fades away.
@@ -442,19 +466,22 @@ function makeFace() {
 //   0.6  each letter crouches and leaps out of the paper with its own trick
 //        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
 //   1.5  the olives pop off the page like popcorn, land, open their eyes and wink
-//   2.2  an olive-branch wreath grows up around the logo
-//   2.5  finale: the whole logo zooms up off the page, swings round and grows to ~1.4x the
-//        print; the letters do a musical stadium wave; confetti
-//   4.0+ menu slides up; idle: drops + glint, olive hops across the letters, waves
-// Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
+//   2.0  the wall opens: a golden iris reveals an olive grove behind the logo (portal.js):
+//        trees pop up, a giant ORS jar pours a river of gold that spills out of the frame
+//   2.4  an olive-branch wreath grows up around the portal
+//   2.5  finale: the logo flies out at you, swings, and settles as a sign floating in front
+//        of the portal; the letters do a musical stadium wave; confetti
+//   4.8+ menu slides up; leaves + butterflies fly out of the portal; idle: drops + glint, olive hops across the letters, waves
+// Tap a letter to play it, an olive to make it flip, the pill to squirt oil, the jar for a
+// gush of gold, a tree to shake its olives loose,
 // anywhere else to spin the logo.
 
 // One side of the olive-branch wreath that grows up around the logo.
 class WreathBranch {
   constructor(side) {
     this.group = new THREE.Group();
-    this.group.position.set(side * 0.53, -ASPECT * 0.42, 0.04);
-    this.group.scale.x = side;
+    this.group.position.set(side * 0.6, -ASPECT * 0.55, 0.04);
+    this.group.scale.set(side * 1.15, 1.15, 1.15);
 
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 0, 0),
@@ -533,11 +560,11 @@ const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo
 const T_PILL = 0.35;
 const T_LETTERS = 0.6, LETTER_GAP = 0.13, CROUCH = 0.1, FLY = 0.6;
 const T_OLIVES = 1.5, OLIVE_GAP = 0.17, OLIVE_FLY = 0.5;
-const T_FINALE = 2.5;   // the whole logo zooms up off the page
-const ZOOM_TIME = 1.1;
-const ZOOM_SCALE = 1.4; // how much bigger than the print it ends up
-const ZOOM_LIFT = 0.28; // how far off the page it floats (logo widths)
-const READY_AT = 4.0;
+const T_PORTAL = 2.0;   // the wall opens into the olive-grove portal
+const T_FINALE = 2.5;   // the logo flies out and becomes the floating sign
+const ZOOM_TIME = 1.2;
+const SIGN = { scale: 0.6, y: 0.3, z: 0.3 }; // where the logo floats in front of the portal
+const READY_AT = 4.8;
 const REVEAL_SPEED = 1; // < 1 slows the coming-to-life down; idle play is always real-time
 const PRINT_FADE = 0.5;  // how much the printed logo is veiled once the 3D one is up
 
@@ -627,7 +654,7 @@ class LogoReveal {
 
     // Olive-branch wreath around the logo (grows in the finale).
     this.wreath = [new WreathBranch(-1), new WreathBranch(1)];
-    this.wreath.forEach((b) => this.logo.add(b.group));
+    this.wreath.forEach((b) => this.root.add(b.group)); // frames the portal
 
     // Olive sprig.
     this.sprig = new THREE.Group();
@@ -689,6 +716,13 @@ class LogoReveal {
     this.drop = new THREE.Mesh(this.dropGeo, this.goldMat);
     this.drop.visible = false;
     this.logo.add(this.drop);
+
+    // The olive-grove portal behind the wall logo.
+    this.portal = new OliveGrovePortal({
+      win: { w: 1.04, h: ASPECT + 0.04 }, leafGeometry, dropGeo: this.dropGeo, goldMat: this.goldMat,
+      logoSrc: "targets/logo.png",
+    });
+    this.root.add(this.portal.root);
 
     // Gold dust.
     const N = 220;
@@ -763,10 +797,14 @@ class LogoReveal {
         return { obj, radius: Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.55, data: { letter: i } };
       }),
       { obj: this.pill, radius: 0.33, data: { pill: true } },
+      { obj: this.portal.jar, radius: 0.22, data: { jar: true } },
+      ...this.portal.trees.map((t, i) => ({ obj: t.canopy, radius: 0.18 * t.h, data: { tree: i } })),
     ]);
     if (hit && hit.olive !== undefined) this.pokeOlive(hit.olive);
     else if (hit && hit.letter !== undefined) this.jumpLetter(hit.letter);
     else if (hit && hit.pill) this.squirt();
+    else if (hit && hit.jar) { this.portal.gush(); sfx.squirt(); }
+    else if (hit && hit.tree !== undefined) { this.portal.shakeTree(hit.tree); sfx.giggle(); }
     else this.spinLogo();
   }
 
@@ -960,7 +998,7 @@ class LogoReveal {
 
     // --- Act 1: the print wakes up -------------------------------------
     this.cue(0.02, () => sfx.rumble());
-    this.veil.material.opacity = PRINT_FADE * smooth((a - T_LETTERS) / 0.8);
+    this.veil.material.opacity = PRINT_FADE * smooth((a - T_LETTERS) / 0.8) * (1 - smooth((a - T_PORTAL) / 0.5));
 
     // --- Act 2: the pill pops, ORS jumps out, the "O" squirts oil ------
     const pu = a - T_PILL;
@@ -1056,18 +1094,20 @@ class LogoReveal {
       this.wave(true);
     });
     this.cue(T_FINALE + 0.6, () => this.celebrate(45));
-    const wreathGrow = (a - (T_FINALE - 0.3)) / 1.0;
+    // The wall opens: an iris of gold reveals the olive grove behind the logo.
+    this.cue(T_PORTAL, () => { sfx.whoosh(); sfx.chime(); });
+    this.portal.update((a - T_PORTAL) / 0.9, time, dt);
+    const wreathGrow = (a - (T_PORTAL + 0.4)) / 1.0;
     this.wreath.forEach((b) => b.update(wreathGrow, time));
-    this.cue(T_FINALE - 0.3, () => sfx.whoosh());
     this.cue(T_FINALE + 0.05, () => sfx.whoosh());
-    // Zoom: rockets up off the page with a swing, overshoots, settles bigger than the print.
+    // The logo flies out at you (bigger mid-flight), swings, then settles as the sign.
     const zt = (a - T_FINALE) / ZOOM_TIME;
     const lift = smooth(zt);
-    const pop = easeOutBack(zt);
+    const burst = Math.sin(Math.PI * clamp01(zt)); // peaks mid-flight
     const float = Math.sin(time * 1.4) * 0.01 * lift;
-    this.logo.position.z = ZOOM_LIFT * pop + float;
-    this.logo.scale.setScalar(1 + (ZOOM_SCALE - 1) * pop);
-    const swing = Math.sin(Math.PI * clamp01(zt)) * 0.9 * (1 - clamp01(zt) * 0.3);
+    this.logo.position.set(0, SIGN.y * lift, SIGN.z * lift + burst * 0.22 + float);
+    this.logo.scale.setScalar(1 + (SIGN.scale - 1) * lift + burst * 0.3);
+    const swing = burst * 0.9 * (1 - clamp01(zt) * 0.3);
     let spinY = 0;
     if (this.spin) {
       this.spin.t += dt / 1.1;
@@ -1077,9 +1117,7 @@ class LogoReveal {
     const sway = this.gameMode ? 0.4 : 1; // calmer during the game
     this.logo.rotation.x = Math.sin(time * 0.7) * 0.12 * lift * sway - swing * 0.25;
     this.logo.rotation.y = Math.sin(time * 0.5) * 0.18 * lift * sway + spinY + swing;
-    this.shadow.material.opacity = 0.3 * lift;
-    this.shadow.position.set(0.04 * lift, -0.06 * lift, 0.001);
-    this.shadow.scale.setScalar(1 + 0.3 * lift + float);
+    this.shadow.material.opacity = 0; // the portal replaces the paper
 
     // --- Idle: drop + glint, olive hops, waves -------------------------
     if (this.active && !this.gameMode && a > READY_AT) {
