@@ -1,4 +1,4 @@
-// ORS Olive Oil catalogue + "Hair Match" logic, shared by logo.html and ritual.html.
+// ORS Olive Oil catalogue + "Hair Match" logic, shared by orsoliveoilarsticker/ and ritual.html.
 //
 // Product names and links are from orshaircare.com (Olive Oil Classics, Max
 // Moisture and Edge Control pages). Descriptions are deliberately plain (what

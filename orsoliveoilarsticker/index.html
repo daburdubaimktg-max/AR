@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Files (scripts, styles, targets) live one level up; resolve everything from there. -->
+  <base href="../" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#123a20" />
+  <title>ORS Olive Oil AR</title>
+  <link rel="stylesheet" href="logo.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ar"></div>
+
+  <section id="setup" class="overlay">
+    <img class="logo-img" src="targets/logo.png" alt="ORS Olive Oil logo" />
+    <h1 id="brandTitle">ORS Olive Oil</h1>
+    <p>Point your camera at this logo and watch it come to life.</p>
+
+    <button id="startBtn" class="primary">Start</button>
+
+    <div id="progress" hidden>
+      <div class="bar"><span id="progressFill"></span></div>
+      <p class="small" id="progressText">Loading the 3D logo…</p>
+    </div>
+
+    <p id="setupError" class="error" hidden></p>
+    <a class="link" href="./">← Sticker camera</a>
+  </section>
+
+  <div id="hint" hidden>
+    <div class="scan-frame"></div>
+    <p>Point your camera at the big ORS Olive Oil logo</p>
+  </div>
+
+  <div id="topbar" hidden>
+    <button id="muteBtn" class="round" aria-label="Mute sound">🔊</button>
+    <button id="snapBtn" class="round" aria-label="Take a photo">📸</button>
+  </div>
+
+  <div id="hud" hidden>
+    <div class="hud-pill"><span class="hud-label">Caught</span> <b id="score">0</b></div>
+    <div id="combo" class="combo" hidden></div>
+    <div class="hud-pill"><b id="timer">25</b>s</div>
+    <div class="bottle" aria-hidden="true"><span id="bottleFill"></span></div>
+  </div>
+
+  <footer id="cta" hidden>
+    <p id="tagline" class="tagline"></p>
+    <button id="matchBtn" class="primary big">✨ Find my hair ritual</button>
+    <button id="playBtn" class="link-btn light">or play a quick game 🎮</button>
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <section id="quiz" class="quiz" hidden>
+    <div class="bubble"><span class="ollie" aria-hidden="true">🫒</span><p id="quizQ"></p></div>
+    <div id="quizOpts" class="opts"></div>
+    <div class="quiz-foot"><span id="quizStep"></span><button id="quizClose" class="link-btn light">Close</button></div>
+  </section>
+
+  <section id="routine" class="sheet" hidden>
+    <div class="card routine-card">
+      <p class="result-kicker">Your ORS Olive Oil ritual</p>
+      <h2 id="routineTitle"></h2>
+      <p class="focus" id="routineFocus"></p>
+      <ol id="routineSteps" class="steps"></ol>
+      <div class="col">
+        <a id="routineCoach" class="primary" href="ritual.html">🧴 Start my ritual coach</a>
+        <button id="routineSave" class="ghost">💾 Save my ritual</button>
+        <button id="routineClose" class="link-btn">Back to AR</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="howto" class="sheet" hidden>
+    <div class="card">
+      <p class="result-kicker">Mini-game</p>
+      <h2>Catch the oil</h2>
+      <ul class="howto-list">
+        <li><span>👆</span><div><b>Tap the golden drops</b> before they fall past the logo.</div></li>
+        <li><span>✨</span><div><b>Big glowing drops</b> are worth <b>+3</b>.</div></li>
+        <li><span>🔥</span><div><b>Catch in a row</b> to build a combo. Missing a drop resets it.</div></li>
+        <li><span>⏱️</span><div>You have <b id="howtoSecs">25</b> seconds. Fill the bottle!</div></li>
+      </ul>
+      <p class="small">Keep the logo in view. The game pauses if you lose it.</p>
+      <div class="col">
+        <button id="howtoGo" class="primary">I'm ready!</button>
+        <button id="howtoClose" class="link-btn">Not now</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="countdown" class="countdown" hidden></div>
+
+  <section id="result" class="sheet" hidden>
+    <div class="card">
+      <p class="result-kicker">Time's up!</p>
+      <h2 id="resultTitle">Olive oil master!</h2>
+      <p class="result-score"><b id="resultScore">0</b> drops caught</p>
+      <p class="small" id="resultBest"></p>
+      <div class="col">
+        <button id="againBtn" class="primary">Play again</button>
+        <button id="resultSnapBtn" class="ghost">📸 Snap a photo</button>
+        <button id="resultCloseBtn" class="link-btn">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="photo" class="sheet" hidden>
+    <img id="photoImg" alt="Your AR photo" />
+    <div class="row">
+      <button id="photoSaveBtn" class="primary">Save / share</button>
+      <button id="photoCloseBtn" class="ghost">Back</button>
+    </div>
+  </section>
+
+  <div id="flash" hidden></div>
+
+  <script type="module" src="logo.js"></script>
+</body>
+</html>

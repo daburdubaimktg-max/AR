@@ -11,7 +11,7 @@ A browser-based AR sticker camera. No install, no build step — just open it on
 
 Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker), running entirely on-device. Nothing is uploaded.
 
-## Logo AR (`logo.html`): scan → hair ritual
+## Logo AR (`orsoliveoilarsticker/`): scan → hair ritual
 
 The scan is the doorway to something useful, not just an animation:
 
@@ -58,7 +58,7 @@ python3 -m http.server 8000
 | `index.html` | Page layout and controls |
 | `style.css` | Styling |
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
-| `logo.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
+| `orsoliveoilarsticker/index.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
 | `sfx.js` | Synthesised sound effects (Web Audio) |
 | `products.js` | ORS Olive Oil catalogue, Hair Match questions and routine matching |
 | `portal.js` | The olive-grove portal behind the wall logo |
