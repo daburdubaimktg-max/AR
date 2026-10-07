@@ -6,6 +6,7 @@
 // extruded here; the olive sprig is modelled to sit over the printed one.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
 import { QUESTIONS, matchRoutine } from "./products.js";
 import { OliveGrovePortal } from "./portal.js";
@@ -18,6 +19,7 @@ const BRAND = {
   tagline: "Nourished by Olive Oil",
   targetSrc: "targets/logo.mind",
   shapesSrc: "targets/logo-shapes.json",
+  heroSrc: "targets/ors-logo-3d.glb", // the modelled 3D logo (falls back to the traced shapes)
   colors: {
     green: 0x1e5631, red: 0xa51f36, white: 0xffffff, olive: 0x9cb83a,
     leaf: 0x3d6b2a, stem: 0x7d8a3c, gold: 0xf0b323,
@@ -90,11 +92,15 @@ async function start() {
   $("setupError").hidden = true;
   $("progress").hidden = false;
 
-  let MindARThree, shapes;
+  let MindARThree, shapes, hero;
   try {
-    [{ MindARThree }, shapes] = await Promise.all([
+    [{ MindARThree }, shapes, hero] = await Promise.all([
       import(MINDAR_THREE),
       fetch(BRAND.shapesSrc).then((r) => r.json()),
+      new GLTFLoader().loadAsync(BRAND.heroSrc).then((g) => g.scene).catch((err) => {
+        console.warn("3D logo model not loaded, using traced shapes", err);
+        return null;
+      }),
     ]);
   } catch (err) {
     console.error(err);
@@ -132,7 +138,7 @@ async function start() {
   };
 
   const anchor = mindar.addAnchor(0);
-  const show = new LogoReveal(shapes, camera);
+  const show = new LogoReveal(shapes, camera, hero);
   const game = new DropGame(show);
   const match = new HairMatch(show);
   anchor.group.add(show.root);
@@ -569,7 +575,7 @@ const REVEAL_SPEED = 1; // < 1 slows the coming-to-life down; idle play is alway
 const PRINT_FADE = 0.5;  // how much the printed logo is veiled once the 3D one is up
 
 class LogoReveal {
-  constructor(shapes, camera) {
+  constructor(shapes, camera, hero = null) {
     this.camera = camera;
     this.root = new THREE.Group();
     this.age = 0;
@@ -745,7 +751,94 @@ class LogoReveal {
     this.flakeGeo = new THREE.PlaneGeometry(0.03, 0.018);
     this.miniOliveGeo = new THREE.SphereGeometry(0.018, 14, 10).scale(1, 1.25, 1);
 
+    if (hero) this.useHero(hero);
     this.apply(0, 0);
+  }
+
+  // Swap the traced shapes for the modelled 3D logo (targets/ors-logo-3d.glb): its letters,
+  // red badge, textured olives, veined leaves, branch and stems. Each part keeps the same
+  // animation hooks as the traced version.
+  useHero(scene) {
+    // Model space (X right, -Z up, +Y towards the viewer) -> logo units, fitted to logo.png.
+    const M = new THREE.Matrix4().set(
+      0.60995, 0, 0, -0.0145,
+      0, 0, -0.59743, -0.020541,
+      0, 0.604, 0, 0,
+      0, 0, 0, 1,
+    );
+    scene.updateMatrixWorld(true);
+    const get = (name) => scene.getObjectByName(name);
+    const toLogo = (o) => o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(M, o.matrixWorld));
+    // A part centred on its own middle (back face at z = 0), like extrude().
+    const part = (name, material) => {
+      const src = get(name);
+      const g = toLogo(src);
+      g.computeBoundingBox();
+      const b = g.boundingBox, c = b.getCenter(new THREE.Vector3());
+      g.translate(-c.x, -c.y, -b.min.z);
+      g.computeBoundingBox();
+      const m = new THREE.Mesh(g, material || src.material);
+      m.position.set(c.x, c.y, 0);
+      m.userData = { baseX: c.x, baseY: c.y, halfH: (b.max.y - b.min.y) / 2, depth: b.max.z - b.min.z };
+      return m;
+    };
+
+    // Letters (same order as the traced ones) and the red badge.
+    const letterNames = ["HERO_OLIVE_O", "HERO_OLIVE_L", "HERO_OLIVE_I", "HERO_OLIVE_V", "HERO_OLIVE_E",
+      "HERO_OIL_O", "HERO_OIL_I", "HERO_OIL_L"];
+    this.letters = this.letters.map((old, i) => {
+      this.logo.remove(old);
+      const mat = get(letterNames[i]).material.clone();
+      mat.emissive = new THREE.Color(BRAND.colors.gold);
+      mat.emissiveIntensity = 0;
+      const m = part(letterNames[i], mat);
+      this.logo.add(m);
+      return m;
+    });
+    this.logo.remove(this.pill);
+    this.pill = part("HERO_red_badge_ORS_cutouts");
+    this.logo.add(this.pill);
+
+    // Olives: the model's textured olives, with faces.
+    const rotate = new THREE.Matrix4().makeRotationX(Math.PI / 2);
+    ["HERO_olive_left", "HERO_olive_right", "HERO_olive_lower"].forEach((name, i) => {
+      this.sprig.remove(this.olives[i]);
+      const src = get(name);
+      const m = new THREE.Mesh(src.geometry.clone().applyMatrix4(rotate), src.material);
+      const c = new THREE.Vector3().setFromMatrixPosition(src.matrixWorld).applyMatrix4(M);
+      m.userData.r = new THREE.Vector3(src.scale.x * 0.60995, src.scale.z * 0.59743, src.scale.y * 0.604);
+      m.position.set(c.x, c.y, m.userData.r.z + 0.03);
+      const face = makeFace();
+      m.add(face);
+      this.sprig.add(m);
+      this.olives[i] = m;
+      Object.assign(this.oliveFx[i], { home: m.position.clone(), tilt: 0, face });
+    });
+
+    // Branch, stems and leaves (+ their veins) grow in from their own centres.
+    this.stems.forEach((s) => this.sprig.remove(s));
+    this.stems = [];
+    this.leaves.forEach((l) => this.sprig.remove(l.pivot));
+    const groups = [
+      [["PRP_branch"], true], [["PRP_fruit_stem_0"], true], [["PRP_fruit_stem_1"], true], [["PRP_fruit_stem_2"], true],
+      [["HERO_leaf_upper", "HERO_leaf_upper_vein"]], [["HERO_leaf_left", "HERO_leaf_left_vein"]],
+      [["HERO_leaf_right", "HERO_leaf_right_vein"]], [["HERO_leaf_lower", "HERO_leaf_lower_vein"]],
+    ];
+    this.leaves = groups.map(([names, noSway]) => {
+      const geos = names.map((n) => toLogo(get(n)));
+      geos[0].computeBoundingBox();
+      const c = geos[0].boundingBox.getCenter(new THREE.Vector3());
+      const pivot = new THREE.Group();
+      pivot.position.copy(c);
+      const leaf = new THREE.Group();
+      geos.forEach((g, k) => {
+        g.translate(-c.x, -c.y, -c.z);
+        leaf.add(new THREE.Mesh(g, get(names[k]).material));
+      });
+      pivot.add(leaf);
+      this.sprig.add(pivot);
+      return { pivot, leaf, noSway: !!noSway };
+    });
   }
 
   found() {
@@ -1084,7 +1177,7 @@ class LogoReveal {
     this.leaves.forEach((l, i) => {
       const k = easeOutBack((a - 1.6 - i * 0.08) / 0.4);
       l.pivot.scale.setScalar(Math.max(0.001, k));
-      l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - READY_AT);
+      if (!l.noSway) l.leaf.rotation.x = Math.sin(time * 1.7 + i * 2) * 0.12 * clamp01(a - READY_AT);
     });
 
     // --- Act 5: finale — lift off, stadium wave, confetti --------------

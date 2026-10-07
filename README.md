@@ -29,7 +29,7 @@ Why this shape: scanning the pack becomes *personal advice → the right product
 
 Product matching is a simple tag score in `matchRoutine()`, so it's easy to tune or replace with your own regimen rules. The Ritual Coach steps and timings are in `buildSteps()` in `ritual.js`.
 
-**How the 3D logo is made.** The letters and pill are traced from the real artwork, so they keep the exact brand letterforms:
+**How the 3D logo is made.** The 3D logo is the modelled `targets/ors-logo-3d.glb` (bevelled enamel letters, the red ORS badge, textured olives, veined leaves); `useHero()` in `logo.js` maps it onto the printed logo. If it can't load, the page falls back to shapes traced from the real artwork:
 
 - `targets/logo-source.png` is the original transparent logo.
 - `tools/vectorize_logo.py` traces it to `targets/logo-shapes.json`, which `logo.js` extrudes into 3D.
