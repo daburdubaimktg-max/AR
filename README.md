@@ -38,6 +38,10 @@ Product matching is a simple tag score in `matchRoutine()`, so it's easy to tune
 
 Add `?debug` to the URL to get `window.reveal`, `window.game` and `window.match` in the console (e.g. `reveal.age = 0` replays the reveal).
 
+## Meet Ollie (`ollie/`), an exploration
+
+A separate page: scan the ORS logo and **Ollie**, a 3D pixel-art (voxel) olive, builds himself up out of the logo cube by cube, then waves, blinks, bobs and greets you in a pixel speech bubble. Tap him to make him jump and say something new. The character is generated in `ollie.js` (`buildOllie()`), and his lines are in `LINES`.
+
 ## Try it
 
 The camera only works over HTTPS (or `localhost`).
@@ -59,6 +63,7 @@ python3 -m http.server 8000
 | `style.css` | Styling |
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
 | `orsoliveoilarsticker/index.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
+| `ollie/index.html`, `ollie.css`, `ollie.js` | Meet Ollie: the voxel mascot exploration |
 | `sfx.js` | Synthesised sound effects (Web Audio) |
 | `products.js` | ORS Olive Oil catalogue, Hair Match questions and routine matching |
 | `ritual.html`, `ritual.css`, `ritual.js` | Ritual Coach: face-tracked application guide + streak |

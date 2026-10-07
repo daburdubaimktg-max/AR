@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Scripts, styles and targets live one level up. -->
+  <base href="../" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#123a20" />
+  <title>Meet Ollie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="ollie.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ar"></div>
+
+  <section id="setup" class="overlay">
+    <div class="pixel-ollie" aria-hidden="true">🫒</div>
+    <h1>Meet Ollie</h1>
+    <p>Point your camera at the ORS Olive Oil logo and Ollie will pop up to say hi.</p>
+    <button id="startBtn" class="btn">START</button>
+    <p id="loading" class="small" hidden>Loading…</p>
+    <p id="error" class="error" hidden></p>
+  </section>
+
+  <div id="hint" class="hint" hidden><div class="frame"></div><p>Find the ORS logo</p></div>
+  <div id="bubble" class="bubble" hidden></div>
+  <p id="tapTip" class="tap-tip" hidden>Tap Ollie!</p>
+
+  <script type="module" src="ollie.js"></script>
+</body>
+</html>
