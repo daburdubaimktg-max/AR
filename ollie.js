@@ -8,7 +8,7 @@ import { QUESTIONS, matchRoutine } from "./products.js";
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 const TARGET = "targets/logo.mind";
 const ASPECT = 570 / 708;          // logo.png height / width (logo units: width 1)
-const V = 0.05;                      // size of one voxel, in logo widths
+const V = 0.044;                     // size of one voxel, in logo widths
 const LINES = [
   "Hi! I'm Ollie 🫒",
   "I'm made of pixels... and olive oil!",
@@ -26,7 +26,7 @@ const C = {
   olive: [0x8db33a, 0x86ad35, 0x93b940], light: [0xa9cc4f, 0xb4d65a], dark: [0x6f9128, 0x678824],
   eye: 0x161616, white: 0xffffff, cheek: 0xff8fa3, mouth: 0x5a1a1a,
   stem: 0x6b4f2a, leaf: 0x3d7a2a, leafLight: 0x5a9a38, foot: 0x4f6d1f,
-  bow: 0xc8243f, bowDark: 0x8e1428, shine: 0xdff2a8,
+  bow: 0xc8243f, bowDark: 0x8e1428, bowLight: 0xe8566e, shine: 0xdff2a8,
 };
 
 function buildOllie() {
@@ -70,19 +70,26 @@ function buildOllie() {
     paint(ex + 1, 5, 0x6e6e6e, "eye");
   }
   for (const x of [-5, -4, 4, 5]) paint(x, 4, C.cheek);     // rosy cheeks
-  for (const x of [-1, 1]) paint(x, 3, C.mouth, "mouth");   // a little "w" smile
-  paint(0, 4, C.mouth, "mouth");
-  paint(-2, 4, C.mouth, "mouth");
-  paint(2, 4, C.mouth, "mouth");
+  paint(0, 3, C.mouth, "mouth");                              // a tiny, sweet "u" smile
+  paint(-1, 4, C.mouth, "mouth");
+  paint(1, 4, C.mouth, "mouth");
   for (const [x, y] of [[-3, 11], [-2, 12], [-4, 10]]) paint(x, y, C.shine); // glossy shine on the skin
-  // A satin bow (ORS red) on top of the head, off to one side.
-  for (const z of [0, 1]) {
-    vox.set(key(3, 13, z), C.bowDark);
-    for (const [x, y] of [[2, 13], [1, 14], [1, 13], [1, 12], [4, 13], [5, 14], [5, 13], [5, 12]]) vox.set(key(x, y, z), C.bow);
+  // A big satin bow (ORS red) on top of the head, to the right of the stem.
+  const BX = 3, BY = 14;
+  const bowRows = { 2: [-3, -2, 2, 3], 1: [-3, -2, -1, 1, 2, 3], 0: [-3, -2, -1, 0, 1, 2, 3], [-1]: [-3, -2, -1, 1, 2, 3], [-2]: [-3, -2, 2, 3] };
+  for (const z of [-1, 0, 1]) {
+    for (const [dy, xs] of Object.entries(bowRows)) {
+      for (const dx of xs) {
+        const col = dx === 0 ? C.bowDark : (Number(dy) === 1 && Math.abs(dx) === 2 && z === 1 ? C.bowLight : C.bow);
+        vox.set(key(BX + dx, BY + Number(dy), z), col);
+      }
+    }
   }
+  vox.set(key(BX - 1, BY - 3, 1), C.bow); // little ribbon tails
+  vox.set(key(BX + 1, BY - 3, 1), C.bow);
   // Stem and leaf on top.
-  for (const y of [14, 15]) vox.set(key(0, y, 0), C.stem);
-  [[1, 16], [2, 16], [3, 16], [2, 17], [3, 17], [4, 17], [1, 15]].forEach(([x, y], i) =>
+  for (const y of [13, 14]) vox.set(key(-2, y, 0), C.stem);
+  [[-3, 15], [-4, 15], [-5, 15], [-4, 16], [-5, 16], [-6, 16], [-3, 14]].forEach(([x, y], i) =>
     vox.set(key(x, y, 0), i % 3 ? C.leaf : C.leafLight));
   // Little feet.
   for (const [x, z] of [[-2, 1], [-3, 1], [2, 1], [3, 1], [-2, 2], [2, 2]]) vox.set(key(x, -1, z), C.foot);
@@ -103,7 +110,8 @@ class Ollie {
   constructor() {
     const model = buildOllie();
     this.root = new THREE.Group();
-    this.root.position.set(0, -ASPECT / 2 - 0.08, 0.15); // standing in front of the logo's bottom edge
+    this.root.position.set(-0.27, -ASPECT / 2 - 0.03, 0.2); // standing at the left edge of the logo
+    this.root.rotation.y = 0.25; // turned a little towards the logo
     this.body = new THREE.Group();
     this.root.add(this.body);
 
@@ -451,7 +459,8 @@ async function start() {
     if (!$("bubble").hidden) {
       ollie.head.getWorldPosition(head).project(camera);
       const r = $("ar").getBoundingClientRect();
-      $("bubble").style.left = `${((head.x + 1) / 2) * r.width}px`;
+      const half = $("bubble").offsetWidth / 2 + 8;
+      $("bubble").style.left = `${Math.min(r.width - half, Math.max(half, ((head.x + 1) / 2) * r.width))}px`;
       const minTop = $("bubble").offsetHeight + 16; // keep it on screen
       $("bubble").style.top = `${Math.max(minTop, ((1 - head.y) / 2) * r.height - 12)}px`;
     }
