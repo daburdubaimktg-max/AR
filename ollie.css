@@ -1,5 +1,5 @@
 [hidden] { display: none !important; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-variant-ligatures: none; }
 html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
   font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 #ar { position: fixed; inset: 0; overflow: hidden; }
@@ -29,7 +29,39 @@ html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: h
   border: 4px solid #1a2a12; box-shadow: 4px 4px 0 rgba(0,0,0,.35); }
 .bubble::after { content: ""; position: absolute; left: 50%; bottom: -16px; width: 12px; height: 12px; background: #fffef2;
   border: 4px solid #1a2a12; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); }
-.tap-tip { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 28px); transform: translateX(-50%); z-index: 6;
+.tap-tip { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 16px); transform: translateX(-50%); z-index: 6;
   margin: 0; font: 400 11px "Press Start 2P", ui-monospace, monospace; background: rgba(0,0,0,.6); padding: 10px 14px;
   animation: blink 1.2s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .35; } }
+
+/* ---- Hair Match with Ollie ---- */
+.menu { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 24px); z-index: 7; display: flex; justify-content: center;
+  animation: up .35s steps(5); }
+@keyframes up { from { transform: translateY(40px); opacity: 0; } }
+.quiz { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; padding: 14px 14px calc(env(safe-area-inset-bottom) + 14px);
+  background: linear-gradient(transparent, rgba(10,25,12,.85) 25%); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt { display: flex; align-items: center; gap: 8px; text-align: left; font: 400 10px/1.5 "Press Start 2P", ui-monospace, monospace;
+  color: #1a2a12; background: #fffef2; border: 4px solid #1a2a12; padding: 10px; box-shadow: 4px 4px 0 rgba(0,0,0,.35);
+  cursor: pointer; animation: pop .3s steps(4) both; }
+.opt span { font-size: 18px; }
+.opt:active, .opt.picked { background: #c7e36a; transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(0,0,0,.35); }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
+.qstep { margin: 10px 0 0; text-align: center; font: 400 9px "Press Start 2P", ui-monospace, monospace; color: rgba(255,255,255,.7); }
+
+.result { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; padding: 0 12px calc(env(safe-area-inset-bottom) + 12px);
+  animation: up .4s steps(6); }
+.card { background: #fffef2; color: #1a2a12; border: 4px solid #1a2a12; box-shadow: 6px 6px 0 rgba(0,0,0,.4);
+  padding: 16px; max-height: 62vh; overflow-y: auto; }
+.kicker { margin: 0; font: 400 9px "Press Start 2P", ui-monospace, monospace; color: #a51f36; }
+.card h2 { margin: 8px 0; font: 700 16px/1.3 system-ui, sans-serif; color: #1e5631; }
+.focus { margin: 0 0 10px; font-size: 13px; background: #eef4d9; border: 2px dashed #9cb83a; padding: 8px; }
+.steps { list-style: none; margin: 0 0 14px; padding: 0; counter-reset: s; }
+.steps li { position: relative; padding: 8px 0 8px 40px; border-bottom: 2px dotted #cfd8b8; counter-increment: s; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 10px; width: 28px; height: 28px; display: grid; place-items: center;
+  font: 400 11px "Press Start 2P", ui-monospace, monospace; color: #fff; background: #1e5631; box-shadow: 2px 2px 0 #0d2a17; }
+.steps b { display: block; font: 400 8px "Press Start 2P", ui-monospace, monospace; color: #a51f36; margin-bottom: 4px; }
+.steps span { display: block; font-weight: 700; font-size: 14px; }
+.steps small { color: #5c6b4e; font-size: 12px; }
+.card .btn { display: block; text-align: center; text-decoration: none; font-size: 11px; }
+.again { display: block; margin: 12px auto 0; background: none; border: 0; color: #5c6b4e; text-decoration: underline; cursor: pointer; font-size: 13px; }

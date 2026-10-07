@@ -40,7 +40,7 @@ Add `?debug` to the URL to get `window.reveal`, `window.game` and `window.match`
 
 ## Meet Ollie (`ollie/`), an exploration
 
-A separate page: scan the ORS logo and **Ollie**, a 3D pixel-art (voxel) olive, builds himself up out of the logo cube by cube, then waves, blinks, bobs and greets you in a pixel speech bubble. Tap him to make him jump and say something new. The character is generated in `ollie.js` (`buildOllie()`), and his lines are in `LINES`.
+A separate page: scan the ORS logo and **Ollie**, a cute 3D pixel-art (voxel) olive with big sparkly eyes and an ORS-red bow, builds himself up out of the logo cube by cube, then waves, blinks, bobs and greets you in a pixel speech bubble. He then **hosts the Hair Match quiz**: he asks the 3 questions himself, hops at each answer, dances, and reveals your ORS Olive Oil routine with a link to the Ritual Coach. Tap him any time to make him jump. The character is generated in `ollie.js` (`buildOllie()`), and his lines are in `LINES`.
 
 ## Try it
 

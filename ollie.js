@@ -3,11 +3,12 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { sfx, unlock } from "./sfx.js";
+import { QUESTIONS, matchRoutine } from "./products.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 const TARGET = "targets/logo.mind";
 const ASPECT = 570 / 708;          // logo.png height / width (logo units: width 1)
-const V = 0.04;                     // size of one voxel, in logo widths
+const V = 0.05;                      // size of one voxel, in logo widths
 const LINES = [
   "Hi! I'm Ollie 🫒",
   "I'm made of pixels... and olive oil!",
@@ -25,6 +26,7 @@ const C = {
   olive: [0x8db33a, 0x86ad35, 0x93b940], light: [0xa9cc4f, 0xb4d65a], dark: [0x6f9128, 0x678824],
   eye: 0x161616, white: 0xffffff, cheek: 0xff8fa3, mouth: 0x5a1a1a,
   stem: 0x6b4f2a, leaf: 0x3d7a2a, leafLight: 0x5a9a38, foot: 0x4f6d1f,
+  bow: 0xc8243f, bowDark: 0x8e1428, shine: 0xdff2a8,
 };
 
 function buildOllie() {
@@ -32,7 +34,7 @@ function buildOllie() {
   const key = (x, y, z) => `${x},${y},${z}`;
   const pick = (arr, x, y, z) => arr[Math.abs(x * 7 + y * 13 + z * 3) % arr.length];
   // Body: an olive-shaped ellipsoid.
-  const RX = 5.3, RY = 6.9, RZ = 4.6, CY = 7;
+  const RX = 5.8, RY = 6.6, RZ = 4.9, CY = 7; // round and chubby
   const inside = (x, y, z) => (x / RX) ** 2 + ((y - CY) / RY) ** 2 + (z / RZ) ** 2 <= 1;
   for (let x = -6; x <= 6; x++) {
     for (let y = 0; y <= 14; y++) {
@@ -61,14 +63,23 @@ function buildOllie() {
     if (tag) tagged.push({ k: key(x, y, z), tag });
   };
   const tagged = [];
-  for (const [ex, hx] of [[-3, -3], [2, 2]]) {             // eyes: 2x2 with a highlight
-    for (const dx of [0, 1]) for (const dy of [7, 8]) paint(ex + dx, dy, C.eye, "eye");
-    paint(hx, 8, C.white, "eye");
+  // Big sparkly eyes: 2 wide x 3 tall, a white glint top-left and a soft one bottom-right.
+  for (const ex of [-3, 2]) {
+    for (const dx of [0, 1]) for (const dy of [5, 6, 7]) paint(ex + dx, dy, C.eye, "eye");
+    paint(ex, 7, C.white, "eye");
+    paint(ex + 1, 5, 0x6e6e6e, "eye");
   }
-  for (const x of [-5, -4, 4, 5]) paint(x, 6, C.cheek);     // cheeks
-  for (const x of [-1, 0, 1]) paint(x, 4, C.mouth, "mouth"); // smile
-  paint(-2, 5, C.mouth, "mouth");
-  paint(2, 5, C.mouth, "mouth");
+  for (const x of [-5, -4, 4, 5]) paint(x, 4, C.cheek);     // rosy cheeks
+  for (const x of [-1, 1]) paint(x, 3, C.mouth, "mouth");   // a little "w" smile
+  paint(0, 4, C.mouth, "mouth");
+  paint(-2, 4, C.mouth, "mouth");
+  paint(2, 4, C.mouth, "mouth");
+  for (const [x, y] of [[-3, 11], [-2, 12], [-4, 10]]) paint(x, y, C.shine); // glossy shine on the skin
+  // A satin bow (ORS red) on top of the head, off to one side.
+  for (const z of [0, 1]) {
+    vox.set(key(3, 13, z), C.bowDark);
+    for (const [x, y] of [[2, 13], [1, 14], [1, 13], [1, 12], [4, 13], [5, 14], [5, 13], [5, 12]]) vox.set(key(x, y, z), C.bow);
+  }
   // Stem and leaf on top.
   for (const y of [14, 15]) vox.set(key(0, y, 0), C.stem);
   [[1, 16], [2, 16], [3, 16], [2, 17], [3, 17], [4, 17], [1, 15]].forEach(([x, y], i) =>
@@ -81,8 +92,8 @@ function buildOllie() {
     return { x, y, z, col, tag: tagged.find((t) => t.k === k)?.tag };
   });
   // Arms: separate so they can wave. Pivot at the shoulder.
-  const arm = (side) => [[side * 6, 6, 0], [side * 7, 6, 0], [side * 7, 7, 0], [side * 8, 7, 0]]
-    .map(([x, y, z]) => ({ x, y, z, col: C.dark[0] }));
+  const arm = (side) => [[side * 6, 5, 0], [side * 7, 5, 0], [side * 7, 6, 0], [side * 6, 5, 1]]
+    .map(([x, y, z]) => ({ x, y, z, col: C.olive[0] }));
   return { body: list, armL: arm(-1), armR: arm(1) };
 }
 
@@ -92,7 +103,7 @@ class Ollie {
   constructor() {
     const model = buildOllie();
     this.root = new THREE.Group();
-    this.root.position.set(0, -ASPECT / 2 + 0.02, 0.12); // standing in front of the logo's bottom edge
+    this.root.position.set(0, -ASPECT / 2 - 0.08, 0.15); // standing in front of the logo's bottom edge
     this.body = new THREE.Group();
     this.root.add(this.body);
 
@@ -114,10 +125,10 @@ class Ollie {
 
     const armMesh = (list, side) => {
       const pivot = new THREE.Group();
-      pivot.position.set(side * 5.5 * V, 7 * V, 0);
+      pivot.position.set(side * 5.5 * V, 6 * V, 0);
       for (const v of list) {
         const m = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: v.col, roughness: 0.55 }));
-        m.position.set((v.x - side * 5.5) * V, (v.y - 6) * V, v.z * V);
+        m.position.set((v.x - side * 5.5) * V, (v.y - 5) * V, v.z * V);
         pivot.add(m);
       }
       pivot.scale.setScalar(0.001);
@@ -154,7 +165,7 @@ class Ollie {
     this.nextBlink = 2;
     this.lastLayer = -1;
     this.head = new THREE.Object3D();
-    this.head.position.set(0, 19 * V, 0);
+    this.head.position.set(0, 18 * V, 0);
     this.body.add(this.head);
     this.tmp = new THREE.Object3D();
   }
@@ -180,9 +191,20 @@ class Ollie {
     }
   }
 
+  // Small happy hop (quiz answers) and a spinning dance (results).
+  hop() {
+    this.jump = { t: 0, dur: 0.45, h: 0.12, spin: 0 };
+    this.burst(6, new THREE.Vector3(0, 0.5, 0.05));
+  }
+
+  dance() {
+    this.jump = { t: 0, dur: 1.4, h: 0.22, spin: 2, hops: 3 };
+    this.burst(24, new THREE.Vector3(0, 0.5, 0.05));
+  }
+
   tap() {
     if (!this.built || this.jump) return;
-    this.jump = { t: 0 };
+    this.jump = { t: 0, dur: 0.8, h: 0.25, spin: 1 };
     sfx.boing(4);
     setTimeout(() => sfx.giggle(), 250);
     this.burst(10, new THREE.Vector3(0, 0.3, 0.05));
@@ -224,10 +246,12 @@ class Ollie {
     const alive = Math.max(0, Math.min(1, (t - 1.6) / 0.4));
     let jumpY = 0, spin = 0, squash = 1;
     if (this.jump) {
-      this.jump.t += dt / 0.8;
-      const j = Math.min(1, this.jump.t);
-      jumpY = Math.sin(Math.PI * j) * 0.25;
-      spin = j * Math.PI * 2;
+      const J = this.jump;
+      J.t += dt / J.dur;
+      const j = Math.min(1, J.t);
+      const hops = J.hops || 1;
+      jumpY = Math.abs(Math.sin(Math.PI * j * hops)) * J.h;
+      spin = j * Math.PI * 2 * J.spin;
       if (j >= 1) this.jump = null;
     }
     const land = t - 1.5;
@@ -307,13 +331,90 @@ async function start() {
   };
   let greeted = false;
   anchor.onTargetFound = () => { ollie.found(); $("hint").hidden = true; };
-  anchor.onTargetLost = () => { ollie.lost(); $("hint").hidden = false; $("bubble").hidden = true; $("tapTip").hidden = true; greeted = false; };
+  anchor.onTargetLost = () => {
+    ollie.lost();
+    $("hint").hidden = false;
+    $("tapTip").hidden = true;
+    if (!quiz.on) { $("bubble").hidden = true; greeted = false; }
+  };
+
+  // ---- Hair Match, hosted by Ollie ----
+  const quiz = { on: false, i: 0, answers: {}, labels: {} };
+  const showMenu = () => { $("menu").hidden = false; };
+  const ask = () => {
+    const q = QUESTIONS[quiz.i];
+    say(q.olive.replace("Hi! I'm Ollie 🫒 ", ""));
+    $("qstep").textContent = `QUESTION ${quiz.i + 1}/${QUESTIONS.length}`;
+    const opts = $("opts");
+    opts.replaceChildren();
+    q.options.forEach((o, k) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.style.animationDelay = `${0.25 + k * 0.08}s`;
+      const icon = document.createElement("span");
+      icon.textContent = o.emoji;
+      b.append(icon, o.label);
+      b.onclick = () => answer(q, o, b);
+      opts.append(b);
+    });
+  };
+  const answer = (q, o, b) => {
+    if (quiz.busy) return;
+    quiz.busy = true;
+    b.classList.add("picked");
+    quiz.answers[q.id] = o.id;
+    quiz.labels[q.id] = o.label;
+    ollie.hop();
+    sfx.pop(quiz.i + 3);
+    if (navigator.vibrate) navigator.vibrate(10);
+    setTimeout(() => {
+      quiz.busy = false;
+      quiz.i++;
+      if (quiz.i < QUESTIONS.length) ask();
+      else finish();
+    }, 550);
+  };
+  const finish = () => {
+    $("quiz").hidden = true;
+    const r = matchRoutine(quiz.answers);
+    ollie.dance();
+    sfx.fanfare();
+    say("Ta-da! Here's your ritual ✨");
+    $("rTitle").textContent = [quiz.labels.type, quiz.labels.concern, quiz.labels.style].join(" · ");
+    $("rFocus").textContent = r.focus;
+    $("rSteps").replaceChildren(...r.steps.map((st) => {
+      const li = document.createElement("li");
+      const b = document.createElement("b");
+      b.textContent = st.title.toUpperCase();
+      const name = document.createElement("span");
+      name.textContent = `ORS ${st.product.name}`;
+      const how = document.createElement("small");
+      how.textContent = st.how;
+      li.append(b, name, how);
+      return li;
+    }));
+    $("rCoach").href = `ritual.html?${new URLSearchParams(quiz.answers)}`;
+    try { localStorage.setItem("ors-ar-routine", JSON.stringify({ answers: quiz.answers, labels: quiz.labels })); } catch { /* ignore */ }
+    setTimeout(() => { $("result").hidden = false; }, 1400);
+  };
+  const startQuiz = () => {
+    Object.assign(quiz, { on: true, i: 0, answers: {}, labels: {}, busy: false });
+    $("menu").hidden = true;
+    $("result").hidden = true;
+    $("tapTip").hidden = true;
+    $("quiz").hidden = false;
+    ollie.hop();
+    ask();
+  };
+  $("matchBtn").onclick = startQuiz;
+  $("rAgain").onclick = startQuiz;
 
   $("ar").addEventListener("pointerdown", () => {
-    if (ollie.tap()) {
+    if (!ollie.tap()) return;
+    $("tapTip").hidden = true;
+    if (!quiz.on) {
       line = (line + 1) % LINES.length;
       say(LINES[line]);
-      $("tapTip").hidden = true;
     }
   });
 
@@ -339,14 +440,20 @@ async function start() {
       greeted = true;
       line = 0;
       say(LINES[0]);
-      setTimeout(() => { if (ollie.active) $("tapTip").hidden = false; }, 2500);
+      setTimeout(() => {
+        if (!ollie.active || quiz.on) return;
+        say("Want me to find your hair ritual?");
+        showMenu();
+        $("tapTip").hidden = false;
+      }, 2600);
     }
     // Keep the speech bubble above Ollie's head.
     if (!$("bubble").hidden) {
       ollie.head.getWorldPosition(head).project(camera);
       const r = $("ar").getBoundingClientRect();
       $("bubble").style.left = `${((head.x + 1) / 2) * r.width}px`;
-      $("bubble").style.top = `${((1 - head.y) / 2) * r.height - 12}px`;
+      const minTop = $("bubble").offsetHeight + 16; // keep it on screen
+      $("bubble").style.top = `${Math.max(minTop, ((1 - head.y) / 2) * r.height - 12)}px`;
     }
   });
 }
