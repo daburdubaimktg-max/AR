@@ -9,7 +9,6 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
 import { QUESTIONS, matchRoutine } from "./products.js";
-import { OliveGrovePortal } from "./portal.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -472,105 +471,21 @@ function makeFace() {
 //   0.6  each letter crouches and leaps out of the paper with its own trick
 //        (O rolls, L backflips, I pogos, V cartwheels, E spins) and lands with a squash
 //   1.5  the olives pop off the page like popcorn, land, open their eyes and wink
-//   2.0  the wall opens: a golden iris reveals an olive grove behind the logo (portal.js):
-//        trees pop up, a giant ORS jar pours a river of gold that spills out of the frame
-//   2.4  an olive-branch wreath grows up around the portal
-//   2.5  finale: the logo flies out at you, swings, and settles as a sign floating in front
-//        of the portal; the letters do a musical stadium wave; confetti
-//   4.8+ menu slides up; leaves + butterflies fly out of the portal; idle: drops + glint, olive hops across the letters, waves
-// Tap a letter to play it, an olive to make it flip, the pill to squirt oil, the jar for a
-// gush of gold, a tree to shake its olives loose,
+//   2.5  finale: the whole logo zooms up off the page, swings round and grows to ~1.4x the
+//        print; the letters do a musical stadium wave; confetti
+//   4.0+ menu slides up; idle: drops + glint, olive hops across the letters, waves
+// Tap a letter to play it, an olive to make it flip, the pill to squirt oil,
 // anywhere else to spin the logo.
-
-// One side of the olive-branch wreath that grows up around the logo.
-class WreathBranch {
-  constructor(side) {
-    this.group = new THREE.Group();
-    this.group.position.set(side * 0.6, -ASPECT * 0.55, 0.04);
-    this.group.scale.set(side * 1.15, 1.15, 1.15);
-
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0.1, 0.18, 0.08),
-      new THREE.Vector3(0.13, 0.46, 0.12),
-      new THREE.Vector3(0.05, 0.76, 0.1),
-    ]);
-    this.stem = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 48, 0.008, 6, false),
-      new THREE.MeshStandardMaterial({ color: BRAND.colors.stem, roughness: 0.7 }),
-    );
-    this.stemLen = this.stem.geometry.index.count;
-    this.stem.geometry.setDrawRange(0, 0);
-    this.group.add(this.stem);
-
-    const leafGeo = leafGeometry(0.16, 0.06);
-    const leafMats = [
-      new THREE.MeshPhysicalMaterial({ color: BRAND.colors.leaf, side: THREE.DoubleSide, roughness: 0.55, clearcoat: 0.15, envMapIntensity: 0.4 }),
-      new THREE.MeshPhysicalMaterial({ color: BRAND.colors.green, side: THREE.DoubleSide, roughness: 0.55, clearcoat: 0.15, envMapIntensity: 0.4 }),
-    ];
-    this.leaves = [];
-    const n = 10;
-    for (let i = 0; i < n; i++) {
-      const t = 0.1 + (i / (n - 1)) * 0.86;
-      const pivot = new THREE.Group();
-      pivot.position.copy(curve.getPoint(t));
-      const tan = curve.getTangent(t);
-      const out = i % 2 ? 1 : -1;
-      pivot.rotation.z = Math.atan2(tan.y, tan.x) + out * 0.85;
-      pivot.rotation.x = 0.35 * out;
-      pivot.add(new THREE.Mesh(leafGeo, leafMats[i % 2]));
-      pivot.scale.setScalar(0.001);
-      this.group.add(pivot);
-      this.leaves.push({ pivot, t, size: 0.8 + Math.random() * 0.4 });
-    }
-    const tip = new THREE.Group();
-    tip.position.copy(curve.getPoint(1));
-    const tt = curve.getTangent(1);
-    tip.rotation.z = Math.atan2(tt.y, tt.x);
-    tip.add(new THREE.Mesh(leafGeo, leafMats[0]));
-    tip.scale.setScalar(0.001);
-    this.group.add(tip);
-    this.leaves.push({ pivot: tip, t: 1, size: 1 });
-
-    const oliveGeo = new THREE.SphereGeometry(0.026, 18, 12);
-    oliveGeo.scale(1, 1.28, 1);
-    const oliveMat = glossy(BRAND.colors.olive, { roughness: 0.4 });
-    this.olives = [0.3, 0.55, 0.8].map((t, i) => {
-      const m = new THREE.Mesh(oliveGeo, oliveMat);
-      const p = curve.getPoint(t);
-      m.position.set(p.x + (i % 2 ? 0.03 : -0.03), p.y - 0.035, p.z + 0.02);
-      m.scale.setScalar(0.001);
-      this.group.add(m);
-      return { mesh: m, t };
-    });
-  }
-
-  // grow: 0..1 how far the branch has grown.
-  update(grow, time) {
-    const g = clamp01(grow);
-    this.stem.geometry.setDrawRange(0, Math.floor((this.stemLen * g) / 3) * 3);
-    for (const l of this.leaves) {
-      const k = easeOutBack(clamp01((g - l.t * 0.85) / 0.2)) * l.size;
-      l.pivot.scale.setScalar(Math.max(0.001, k));
-    }
-    for (const o of this.olives) {
-      const k = easeOutBack(clamp01((g - 0.85 - o.t * 0.1) / 0.15));
-      o.mesh.scale.setScalar(Math.max(0.001, k));
-    }
-    this.group.rotation.z = Math.sin(time * 1.3) * 0.04 * g;
-    this.group.rotation.y = Math.sin(time * 0.9 + 1) * 0.06 * g;
-  }
-}
 
 const LETTER_MOVES = ["roll", "flip", "pogo", "cartwheel", "spin", "roll", "pogo", "flip"]; // O L I V E O I L
 const T_PILL = 0.35;
 const T_LETTERS = 0.6, LETTER_GAP = 0.13, CROUCH = 0.1, FLY = 0.6;
 const T_OLIVES = 1.5, OLIVE_GAP = 0.17, OLIVE_FLY = 0.5;
-const T_PORTAL = 2.0;   // the wall opens into the olive-grove portal
-const T_FINALE = 2.5;   // the logo flies out and becomes the floating sign
-const ZOOM_TIME = 1.2;
-const SIGN = { scale: 0.6, y: 0.3, z: 0.3 }; // where the logo floats in front of the portal
-const READY_AT = 4.8;
+const T_FINALE = 2.5;   // the whole logo zooms up off the page
+const ZOOM_TIME = 1.1;
+const ZOOM_SCALE = 1.4; // how much bigger than the print it ends up
+const ZOOM_LIFT = 0.28; // how far off the page it floats (logo widths)
+const READY_AT = 4.0;
 const REVEAL_SPEED = 1; // < 1 slows the coming-to-life down; idle play is always real-time
 const PRINT_FADE = 0.5;  // how much the printed logo is veiled once the 3D one is up
 
@@ -658,10 +573,6 @@ class LogoReveal {
     this.tm = extrude(shapes.tm, glossy(BRAND.colors.green), 0.01, 0.002);
     this.logo.add(this.tm);
 
-    // Olive-branch wreath around the logo (grows in the finale).
-    this.wreath = [new WreathBranch(-1), new WreathBranch(1)];
-    this.wreath.forEach((b) => this.root.add(b.group)); // frames the portal
-
     // Olive sprig.
     this.sprig = new THREE.Group();
     this.logo.add(this.sprig);
@@ -722,13 +633,6 @@ class LogoReveal {
     this.drop = new THREE.Mesh(this.dropGeo, this.goldMat);
     this.drop.visible = false;
     this.logo.add(this.drop);
-
-    // The olive-grove portal behind the wall logo.
-    this.portal = new OliveGrovePortal({
-      win: { w: 1.04, h: ASPECT + 0.04 }, leafGeometry, dropGeo: this.dropGeo, goldMat: this.goldMat,
-      logoSrc: "targets/logo.png",
-    });
-    this.root.add(this.portal.root);
 
     // Gold dust.
     const N = 220;
@@ -890,14 +794,10 @@ class LogoReveal {
         return { obj, radius: Math.max(b.max.x - b.min.x, b.max.y - b.min.y) * 0.55, data: { letter: i } };
       }),
       { obj: this.pill, radius: 0.33, data: { pill: true } },
-      { obj: this.portal.jar, radius: 0.22, data: { jar: true } },
-      ...this.portal.trees.map((t, i) => ({ obj: t.canopy, radius: 0.18 * t.h, data: { tree: i } })),
     ]);
     if (hit && hit.olive !== undefined) this.pokeOlive(hit.olive);
     else if (hit && hit.letter !== undefined) this.jumpLetter(hit.letter);
     else if (hit && hit.pill) this.squirt();
-    else if (hit && hit.jar) { this.portal.gush(); sfx.squirt(); }
-    else if (hit && hit.tree !== undefined) { this.portal.shakeTree(hit.tree); sfx.giggle(); }
     else this.spinLogo();
   }
 
@@ -1091,7 +991,7 @@ class LogoReveal {
 
     // --- Act 1: the print wakes up -------------------------------------
     this.cue(0.02, () => sfx.rumble());
-    this.veil.material.opacity = PRINT_FADE * smooth((a - T_LETTERS) / 0.8) * (1 - smooth((a - T_PORTAL) / 0.5));
+    this.veil.material.opacity = PRINT_FADE * smooth((a - T_LETTERS) / 0.8);
 
     // --- Act 2: the pill pops, ORS jumps out, the "O" squirts oil ------
     const pu = a - T_PILL;
@@ -1187,20 +1087,15 @@ class LogoReveal {
       this.wave(true);
     });
     this.cue(T_FINALE + 0.6, () => this.celebrate(45));
-    // The wall opens: an iris of gold reveals the olive grove behind the logo.
-    this.cue(T_PORTAL, () => { sfx.whoosh(); sfx.chime(); });
-    this.portal.update((a - T_PORTAL) / 0.9, time, dt);
-    const wreathGrow = (a - (T_PORTAL + 0.4)) / 1.0;
-    this.wreath.forEach((b) => b.update(wreathGrow, time));
     this.cue(T_FINALE + 0.05, () => sfx.whoosh());
-    // The logo flies out at you (bigger mid-flight), swings, then settles as the sign.
+    // Zoom: rockets up off the page with a swing, overshoots, settles bigger than the print.
     const zt = (a - T_FINALE) / ZOOM_TIME;
     const lift = smooth(zt);
-    const burst = Math.sin(Math.PI * clamp01(zt)); // peaks mid-flight
+    const pop = easeOutBack(zt);
     const float = Math.sin(time * 1.4) * 0.01 * lift;
-    this.logo.position.set(0, SIGN.y * lift, SIGN.z * lift + burst * 0.22 + float);
-    this.logo.scale.setScalar(1 + (SIGN.scale - 1) * lift + burst * 0.3);
-    const swing = burst * 0.9 * (1 - clamp01(zt) * 0.3);
+    this.logo.position.set(0, 0, ZOOM_LIFT * pop + float);
+    this.logo.scale.setScalar(1 + (ZOOM_SCALE - 1) * pop);
+    const swing = Math.sin(Math.PI * clamp01(zt)) * 0.9 * (1 - clamp01(zt) * 0.3);
     let spinY = 0;
     if (this.spin) {
       this.spin.t += dt / 1.1;
@@ -1210,7 +1105,9 @@ class LogoReveal {
     const sway = this.gameMode ? 0.4 : 1; // calmer during the game
     this.logo.rotation.x = Math.sin(time * 0.7) * 0.12 * lift * sway - swing * 0.25;
     this.logo.rotation.y = Math.sin(time * 0.5) * 0.18 * lift * sway + spinY + swing;
-    this.shadow.material.opacity = 0; // the portal replaces the paper
+    this.shadow.material.opacity = 0.3 * lift;
+    this.shadow.position.set(0.04 * lift, -0.06 * lift, 0.001);
+    this.shadow.scale.setScalar(1 + 0.3 * lift + float);
 
     // --- Idle: drop + glint, olive hops, waves -------------------------
     if (this.active && !this.gameMode && a > READY_AT) {
