@@ -9,7 +9,6 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { sfx, unlock, isMuted, setMuted } from "./sfx.js";
 import { QUESTIONS, matchRoutine } from "./products.js";
-import { Ollie } from "./ollie-character.js";
 
 const MINDAR_THREE = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
 
@@ -36,14 +35,6 @@ const GAME = {
     [0, "Nice start!"],
   ],
 };
-
-// Things Ollie says when you tap him.
-const OLLIE_LINES = [
-  "Hehe, that tickles!",
-  "I'm made of pixels... and olive oil!",
-  "Wheee!",
-  "Tap \u2728 Find my hair ritual and I'll help!",
-];
 
 // logo.png is 708 x 570 px. Logo units: width 1, origin at the centre, y up.
 const LOGO_W = 708, LOGO_H = 570;
@@ -136,41 +127,21 @@ async function start() {
   scene.add(key);
 
   let ctaArmed = false;
-  let ollieGreeted = false;
   let tipShown = false;
   const showMenu = () => {
     $("cta").hidden = false;
     if (!tipShown) {
       tipShown = true;
-      setTimeout(() => toast("Tip: tap Ollie, the letters and the olives 🫒"), 1200);
+      setTimeout(() => toast("Tip: tap the letters and olives 🫒"), 1200);
     }
   };
 
   const anchor = mindar.addAnchor(0);
   const show = new LogoReveal(shapes, camera, hero);
   const game = new DropGame(show);
-  // Ollie, the voxel mascot, joins once the logo has come to life and hosts Hair Match.
-  const ollie = new Ollie({ position: [-0.28, -ASPECT / 2 - 0.02, 0.55], rotationY: 0.35 });
-  ollie.root.scale.setScalar(0.62); // a little smaller here, so he fits beside the zoomed-up logo
-  const ollieCentre = new THREE.Object3D();
-  ollieCentre.position.set(0, 0.35, 0);
-  ollie.body.add(ollieCentre);
-  const say = (text) => {
-    const b = $("ollieBubble");
-    b.hidden = false;
-    let i = 0;
-    const chars = [...text];
-    clearInterval(say.timer);
-    say.timer = setInterval(() => {   // typewriter
-      b.textContent = chars.slice(0, ++i).join("");
-      if (i % 2) sfx.tick();
-      if (i >= chars.length) clearInterval(say.timer);
-    }, 40);
-  };
-  const match = new HairMatch(show, { ollie, say });
+  const match = new HairMatch(show);
   anchor.group.add(show.root);
-  anchor.group.add(ollie.root);
-  if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { reveal: show, game, match, ollie });
+  if (new URLSearchParams(location.search).has("debug")) Object.assign(window, { reveal: show, game, match });
 
   anchor.onTargetFound = () => {
     show.found();
@@ -180,21 +151,14 @@ async function start() {
   };
   anchor.onTargetLost = () => {
     show.lost();
-    ollie.lost();
     $("hint").hidden = false;
-    $("ollieBubble").hidden = true;
   };
 
   $("ar").addEventListener("pointerdown", (e) => {
     const rect = $("ar").getBoundingClientRect();
     const p = { x: e.clientX - rect.left, y: e.clientY - rect.top, w: rect.width, h: rect.height };
-    if (game.running) { game.tap(p); return; }
-    if (ollie.built && show.pick(p, [{ obj: ollieCentre, radius: 0.28, data: true }])) {
-      ollie.tap();
-      if ($("quiz").hidden) say(OLLIE_LINES[Math.floor(Math.random() * OLLIE_LINES.length)]);
-      return;
-    }
-    show.tap(p);
+    if (game.running) game.tap(p);
+    else show.tap(p);
   });
 
   // Game: rules first, then a 3-2-1 countdown.
@@ -229,25 +193,6 @@ async function start() {
     const dt = Math.min(clock.getDelta(), 0.05);
     game.update(dt);
     show.update(dt, clock.elapsedTime);
-    // Ollie builds himself up once the reveal is done, then greets and offers help.
-    if (show.ready && !ollie.active) { ollie.found(); ollieGreeted = false; }
-    ollie.update(dt, clock.elapsedTime);
-    if (ollie.active && ollie.built && !ollieGreeted) {
-      ollieGreeted = true;
-      say("Hi! I'm Ollie 🫒");
-      setTimeout(() => {
-        if (ollie.active && $("quiz").hidden && $("routine").hidden && !game.running) say("Want me to find your hair ritual?");
-      }, 2400);
-    }
-    // Keep Ollie's speech bubble above his head, on screen.
-    if (!$("ollieBubble").hidden) {
-      const head = ollie.head.getWorldPosition(new THREE.Vector3()).project(camera);
-      const r = $("ar").getBoundingClientRect();
-      const b = $("ollieBubble");
-      const half = b.offsetWidth / 2 + 8;
-      b.style.left = `${Math.min(r.width - half, Math.max(half, ((head.x + 1) / 2) * r.width))}px`;
-      b.style.top = `${Math.max(b.offsetHeight + 70, ((1 - head.y) / 2) * r.height - 12)}px`;
-    }
     if (ctaArmed && show.ready) {
       ctaArmed = false;
       const busy = game.running || !$("quiz").hidden || !$("routine").hidden || !$("result").hidden || !$("howto").hidden;
@@ -1547,9 +1492,8 @@ function wrapText(g, text, x, y, maxW, lineH) {
 }
 
 class HairMatch {
-  constructor(show, host) {
+  constructor(show) {
     this.show = show;
-    this.host = host; // { ollie, say }: Ollie asks the questions
     this.routine = null;
     $("quizClose").onclick = () => { $("quiz").hidden = true; $("cta").hidden = false; };
     $("routineClose").onclick = () => { $("routine").hidden = true; $("cta").hidden = false; };
@@ -1563,14 +1507,17 @@ class HairMatch {
     $("cta").hidden = true;
     $("quiz").hidden = false;
     this.show.cheer();
-    this.host.ollie.hop();
     sfx.bloop(1);
     this.render();
   }
 
   render() {
     const q = QUESTIONS[this.i];
-    this.host.say(q.olive.replace("Hi! I'm Ollie 🫒 ", ""));
+    const bubble = $("quizQ");
+    bubble.textContent = q.olive;
+    bubble.style.animation = "none";
+    void bubble.offsetWidth;
+    bubble.style.animation = "";
     $("quizStep").textContent = `Question ${this.i + 1} of ${QUESTIONS.length}`;
     const opts = $("quizOpts");
     opts.replaceChildren();
@@ -1594,14 +1541,13 @@ class HairMatch {
     this.labels[q.id] = o.label;
     sfx.pop(this.i + 3);
     this.show.cheer();
-    this.host.ollie.hop();
     if (navigator.vibrate) navigator.vibrate(10);
     setTimeout(() => {
       this.busy = false;
       this.i++;
       if (this.i < QUESTIONS.length) this.render();
       else this.finish();
-    }, 500);
+    }, 280);
   }
 
   finish() {
@@ -1628,11 +1574,9 @@ class HairMatch {
     const params = new URLSearchParams(this.answers).toString();
     $("routineCoach").href = `ritual.html?${params}`;
     try { localStorage.setItem("ors-ar-routine", JSON.stringify({ answers: this.answers, labels: this.labels })); } catch { /* ignore */ }
-    this.host.ollie.dance();
-    this.host.say("Ta-da! Here's your ritual ✨");
+    $("routine").hidden = false;
     this.show.celebrate(50);
     sfx.fanfare();
-    setTimeout(() => { $("routine").hidden = false; }, 1300);
   }
 
   // A shareable "my ritual" card image.
