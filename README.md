@@ -16,7 +16,7 @@ Face tracking uses [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediap
 The scan is the doorway to something useful, not just an animation:
 
 1. **Brand moment (about 4s):** point the camera at the ORS Olive Oil logo and it comes to life: the modelled 3D logo's letters leap out of the print with tricks, the olives pop like popcorn and wake up, then the whole logo zooms up off the page in 3D and floats, bigger than the print. Timings are the `T_*` constants and `ZOOM_*` in `logo.js`.
-2. **✨ Hair Match:** the olive mascot asks 3 questions in the AR view (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), using real ORS Olive Oil products. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
+2. **✨ Hair Match, hosted by Ollie:** once the logo has come to life, **Ollie** (the voxel mascot, `ollie-character.js`) builds himself up beside it, says hi and offers to help. He asks 3 questions in his pixel speech bubble (hair type, main need, how you wear it) and builds a personal **ORS Olive Oil routine**: cleanse → condition → moisturise → style (+ edges), using real ORS Olive Oil products. It can be saved or shared as a branded card image, or opened in the Ritual Coach.
 3. **🧴 Ritual Coach (`ritual.html`):** a selfie-camera guide that tracks your face on-device and walks through a practical at-home moisture routine with your matched products: prep (damp hair) → section into 4 (part lines drawn on your head) → moisturise mid-lengths to ends (arrows down the lengths) → fingertip scalp massage (circles on the temples) → edges (brush strokes) → finish & protect (try on a satin bonnet). The wording adapts to hair type, need and style. It has timers, optional voice guidance and haptics. Finishing stamps a **7-day streak** card (kept on the phone), a hook for loyalty and rewards.
 4. **Extras:** tap letters and olives to play, the *Catch the oil* mini-game (with a how-to card and 3-2-1 countdown), and 📸 photo snaps.
 
@@ -63,7 +63,8 @@ python3 -m http.server 8000
 | `style.css` | Styling |
 | `app.js` | Camera, face tracking, sticker placement, gestures, capture |
 | `orsoliveoilarsticker/index.html`, `logo.css`, `logo.js` | Logo-scanning 3D AR experience and mini-game |
-| `ollie/index.html`, `ollie.css`, `ollie.js` | Meet Ollie: the voxel mascot exploration |
+| `ollie-character.js` | Ollie, the voxel mascot (shared by both pages) |
+| `ollie/index.html`, `ollie.css`, `ollie.js` | Meet Ollie: the standalone mascot page |
 | `sfx.js` | Synthesised sound effects (Web Audio) |
 | `products.js` | ORS Olive Oil catalogue, Hair Match questions and routine matching |
 | `ritual.html`, `ritual.css`, `ritual.js` | Ritual Coach: face-tracked application guide + streak |
