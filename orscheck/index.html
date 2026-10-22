@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Files (scripts, styles, targets) live one level up; resolve everything from there. -->
+  <base href="../" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#123a20" />
+  <title>Is my ORS real?</title>
+  <link rel="stylesheet" href="check.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ar"></div>
+
+  <section id="setup" class="screen">
+    <div class="pill">ORS</div>
+    <h1>Is my ORS real?</h1>
+    <p>Scan the front label of your ORS Olive Oil product to check it against the genuine South African design.</p>
+    <button id="startBtn" class="primary">📷 Scan the front label</button>
+    <button id="guideBtn" class="link-btn">How to spot a fake</button>
+    <div id="progress" hidden><div class="bar"><span></span></div><p class="small">Starting camera…</p></div>
+    <p id="setupError" class="error" hidden></p>
+  </section>
+
+  <div id="hint" hidden>
+    <div class="label-frame"><span id="scanLine"></span></div>
+    <p id="hintText">Hold the front label inside the frame</p>
+  </div>
+
+  <section id="result" class="sheet" hidden>
+    <div class="card">
+      <div id="verdict" class="verdict">
+        <span id="verdictIcon" class="v-icon"></span>
+        <div>
+          <h2 id="verdictTitle"></h2>
+          <p id="verdictSub"></p>
+        </div>
+      </div>
+      <img id="evidence" class="evidence" alt="Photo of the scanned label" hidden />
+      <p id="checksTitle" class="checks-title"></p>
+      <ul id="checks" class="checks"></ul>
+      <p id="note" class="note"></p>
+      <div class="col">
+        <button id="reportBtn" class="primary">🚩 Report this product</button>
+        <button id="againBtn" class="ghost">Scan another</button>
+        <button id="resultGuideBtn" class="link-btn">How to spot a fake</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="guide" class="sheet" hidden>
+    <div class="card">
+      <h2>How to spot genuine ORS</h2>
+      <p class="sub">South Africa · Olive Oil range</p>
+      <ul class="checks static">
+        <li><b>New green &amp; burgundy label.</b> Green top, burgundy band at the bottom.</li>
+        <li><b>Red ORS logo at the top</b>, above "OLIVE OIL".</li>
+        <li><b>"OLIVE OIL" is olive green</b>, never black.</li>
+        <li><b>"Original Formula"</b> in italic script under the product name.</li>
+        <li><b>No spelling mistakes</b>, and smooth, sharp printing on a sturdy pack.</li>
+        <li><b>Look-alike brand names</b> such as "MOMOLEMO" on an ORS-style label are fakes.</li>
+        <li><b>Sizes add up.</b> Fakes often print mismatched sizes, e.g. "420ml 260g (11.7 oz)".</li>
+      </ul>
+      <p class="note">Buy from trusted stores. If the price is far below normal, be careful.</p>
+      <div class="col"><button id="guideClose" class="primary">Got it</button></div>
+    </div>
+  </section>
+
+  <script type="module" src="check.js"></script>
+</body>
+</html>

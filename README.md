@@ -38,6 +38,25 @@ Product matching is a simple tag score in `matchRoutine()`, so it's easy to tune
 
 Add `?debug` to the URL to get `window.reveal`, `window.game` and `window.match` in the console (e.g. `reveal.age = 0` replays the reveal).
 
+## Is my ORS real? (`orscheck/`): front-label check, South Africa
+
+Scan the front label and the page says which design it matches:
+
+- **Matches the genuine design**: the South African green & burgundy Nourishing Sheen Spray 275 ml. The shopper then ticks a short checklist (275 ml, "Original Formula", burgundy band, seal, clean print).
+- **Known counterfeit design**: the 420 ml "infused with Coconut Oil" knock-off (pink ORS badge, "420ml 260g (11.7 oz)").
+- **Couldn't match**: anything else after 15 s, with tips and the "How to spot a fake" guide.
+
+Every result has a **Report** button that shares the camera snapshot (or opens an email) with store, price and date prompts.
+
+Targets are only the *lower* part of each label, the area where genuine and fake differ. The ORS logo alone must not count as "genuine", because fakes copy it.
+
+**Limits:** this checks the label design, not the product. An exact copy of the genuine artwork will match "genuine". For real authentication, add serialised QR codes, holograms or NFC on pack.
+
+**Before launch:**
+- Replace the reference crops (taken from a social-media screenshot) with flat print artwork for each SA SKU, plus photos of known fakes.
+- Recompile with `tools/compile_labels.mjs` and add matching entries to `LABELS` in `check.js`.
+- Set `REPORT.email` in `check.js` to the South Africa consumer-care contact. It is currently the address printed on the US can.
+
 ## Meet Ollie (`ollie/`), an exploration
 
 A separate page: scan the ORS logo and **Ollie**, a cute 3D pixel-art (voxel) olive with big sparkly eyes and an ORS-red bow, builds himself up out of the logo cube by cube, then waves, blinks, bobs and greets you in a pixel speech bubble. He then **hosts the Hair Match quiz**: he asks the 3 questions himself, hops at each answer, dances, and reveals your ORS Olive Oil routine with a link to the Ritual Coach. Tap him any time to make him jump. The character is generated in `ollie.js` (`buildOllie()`), and his lines are in `LINES`.
