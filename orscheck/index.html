@@ -8,6 +8,14 @@
   <meta name="theme-color" content="#123a20" />
   <title>Is my ORS real?</title>
   <link rel="stylesheet" href="check.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
   <div id="ar"></div>
@@ -27,6 +35,8 @@
     <p id="hintText">Hold the front label inside the frame</p>
   </div>
 
+  <div id="seal" class="seal" hidden><span>✓</span><b>GENUINE</b><small>ORS · South Africa</small></div>
+
   <section id="result" class="sheet" hidden>
     <div class="card">
       <div id="verdict" class="verdict">
@@ -39,8 +49,10 @@
       <img id="evidence" class="evidence" alt="Photo of the scanned label" hidden />
       <p id="checksTitle" class="checks-title"></p>
       <ul id="checks" class="checks"></ul>
+      <p id="tagline" class="tagline" hidden>Protect your crown 👑</p>
       <p id="note" class="note"></p>
       <div class="col">
+        <button id="doneBtn" class="primary" hidden>Scan another</button>
         <button id="reportBtn" class="primary">🚩 Report this product</button>
         <button id="againBtn" class="ghost">Scan another</button>
         <button id="resultGuideBtn" class="link-btn">How to spot a fake</button>

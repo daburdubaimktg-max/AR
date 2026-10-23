@@ -44,7 +44,7 @@ Fit the whole can in the frame. The page reads the label's colour layout from to
 
 | Layout | Result |
 |---|---|
-| Lime green, then a **burgundy band at the bottom** | ✓ Matches the genuine SA label, plus a tick-list of details |
+| Lime green, then a **burgundy band at the bottom** | ✓ The can comes to life: the 3D ORS logo springs out with olives and confetti, a "Genuine" seal stamps on, then a short card (no checklist) |
 | Lime green with a **pink ORS badge**, dark-green bottom band | ! Known counterfeit design (the 420 ml coconut knock-off) |
 | Lime green, **dark-green** bottom band, no pink | ! Not the genuine SA label |
 | **Red band in the middle**, lime below (old layout) | ! Old-style label: check for black "OLIVE OIL", bold name, typos, MOMOLEMO |
@@ -52,7 +52,7 @@ Fit the whole can in the frame. The page reads the label's colour layout from to
 
 Brightness is judged relative to the label's own lime green, so dim light and warm or cool phone cameras give the same answer. Each result has a **Report** button that shares a camera snapshot, or opens an email.
 
-**Limits:** this checks the label *design*, not the product. A fake printed with the genuine green & burgundy artwork will pass, which is why the genuine result asks for a detail check. For real authentication, add serialised QR codes, holograms or NFC on pack.
+**Limits:** this checks the label *design*, not the product. A fake printed with the genuine green & burgundy artwork will pass, so the genuine card keeps a small "Something looks off? Report it" link. For real authentication, add serialised QR codes, holograms or NFC on pack.
 
 **Before launch:** set `REPORT.email` in `check.js` to the South Africa consumer-care contact (it is currently the address printed on the US can), and test on real stock.
 

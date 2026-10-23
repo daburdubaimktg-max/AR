@@ -12,16 +12,6 @@ import { sfx, unlock } from "./sfx.js";
 // What each result says. Colours of the genuine South African label:
 // lime-green top, red ORS pill, burgundy band at the bottom.
 const RESULTS = {
-  genuine: {
-    product: "ORS Olive Oil \u00B7 green & burgundy label",
-    checks: [
-      "Red ORS logo at the top, \u201COLIVE OIL\u201D in olive green (not black)",
-      "\u201COriginal Formula\u201D in italic script",
-      "Burgundy band: \u201CTHE TRIED. THE TRUE. THE CLASSIC.\u201D",
-      "Size matches the pack (Sheen Spray: 275 ml)",
-      "Sharp printing, no spelling mistakes",
-    ],
-  },
   fake: {
     title: "Known counterfeit design",
     sub: "Pink ORS badge on a dark-green label: a fake design seen in South Africa.",
@@ -68,11 +58,14 @@ let giveUpTimer = 0;
 let loopTimer = 0;
 let lastResult = null;
 let streak = { kind: null, n: 0 };
+let fx = null; // the "comes to life" effect, loaded in the background
+let fxTimers = [];
 
 $("startBtn").onclick = start;
 $("guideBtn").onclick = $("resultGuideBtn").onclick = () => { $("guide").hidden = false; };
 $("guideClose").onclick = () => { $("guide").hidden = true; };
 $("againBtn").onclick = () => { $("result").hidden = true; scan(); };
+$("doneBtn").onclick = () => { $("result").hidden = true; scan(); };
 $("reportBtn").onclick = report;
 
 async function start() {
@@ -97,6 +90,7 @@ async function start() {
       ? "Camera unavailable. Allow camera access and try again."
       : "Camera needs HTTPS. Open this page over https://.");
   }
+  import("./check-fx.js").then(({ ComeAlive }) => { fx = new ComeAlive(); }).catch((err) => console.warn(err));
   $("setup").hidden = true;
   if (new URLSearchParams(location.search).has("debug")) window.check = { read: () => analyse(readFrame()), rows: () => rowCodes(readFrame()) };
   scan();
@@ -198,6 +192,10 @@ function tick() {
 }
 
 function scan() {
+  fxTimers.forEach(clearTimeout);
+  fxTimers = [];
+  fx?.stop();
+  $("seal").hidden = true;
   scanning = true;
   lastResult = null;
   streak = { kind: null, n: 0 };
@@ -214,6 +212,7 @@ function decide(kind) {
   scanning = false;
   clearTimeout(giveUpTimer);
   clearTimeout(loopTimer);
+  const frame = document.querySelector(".label-frame").getBoundingClientRect(); // before hiding it
   $("hint").hidden = true;
   const res = RESULTS[kind];
   lastResult = { kind, photo: null };
@@ -221,15 +220,17 @@ function decide(kind) {
   if (navigator.vibrate) navigator.vibrate(good ? 30 : [60, 60, 60]);
   if (good) sfx.chime(); else sfx.splat();
 
-  const tone = good ? "genuine" : kind === "unknown" || kind === "old" ? "unknown" : "fake";
+  if (good) return celebrate(frame);
+
+  $("result").className = "sheet";
+  $("result").querySelector(".card").className = "card";
+  $("tagline").hidden = true;
+  $("againBtn").hidden = false;
+  $("doneBtn").hidden = true;
+  const tone = kind === "unknown" || kind === "old" ? "unknown" : "fake";
   $("verdict").className = `verdict ${tone}`;
-  $("verdictIcon").textContent = good ? "\u2713" : kind === "unknown" ? "?" : "!";
-  if (good) {
-    $("verdictTitle").textContent = "Matches the genuine SA label";
-    $("verdictSub").textContent = res.product;
-    $("checksTitle").textContent = "Now check these details on your pack:";
-    $("note").textContent = "This checks the label design only. Copies can look identical, so if any detail is off, report it.";
-  } else if (res) {
+  $("verdictIcon").textContent = kind === "unknown" ? "?" : "!";
+  if (res) {
     $("verdictTitle").textContent = res.title;
     $("verdictSub").textContent = res.sub;
     $("checksTitle").textContent = kind === "old" ? "Signs of a fake:" : "Why it\u2019s flagged:";
@@ -251,16 +252,11 @@ function decide(kind) {
   const ul = $("checks");
   ul.replaceChildren(...items.map((t) => {
     const li = document.createElement("li");
-    if (good) {
-      const box = document.createElement("label");
-      box.innerHTML = `<input type="checkbox" /> <span></span>`;
-      box.querySelector("span").textContent = t;
-      li.append(box);
-    } else li.textContent = t;
+    li.textContent = t;
     return li;
   }));
-  $("reportBtn").className = good ? "ghost" : "primary";
-  $("reportBtn").textContent = good ? "\uD83D\uDEA9 Something looks off? Report" : "\uD83D\uDEA9 Report this product";
+  $("reportBtn").className = "primary";
+  $("reportBtn").textContent = "\uD83D\uDEA9 Report this product";
 
   capture().then((blob) => {
     if (!blob || lastResult?.kind !== kind) return;
@@ -270,6 +266,32 @@ function decide(kind) {
   });
   $("evidence").hidden = true;
   $("result").hidden = false;
+}
+
+// Genuine: the can comes to life (3D logo springs out, confetti, a seal stamps on),
+// then a short card. No checklist to fill in.
+function celebrate(rect) {
+  capture().then((blob) => { if (lastResult?.kind === "genuine") lastResult.photo = blob; });
+  if (fx) fx.play(rect);
+  sfx.whoosh();
+  const later = (ms, fn) => fxTimers.push(setTimeout(fn, ms));
+  later(550, () => sfx.pop(4));
+  later(1000, () => { $("seal").hidden = false; sfx.fanfare(); if (navigator.vibrate) navigator.vibrate([20, 40, 20]); });
+  later(2600, () => {
+    $("verdict").className = "verdict genuine";
+    $("verdictIcon").textContent = "\u2713";
+    $("verdictTitle").textContent = "Genuine ORS";
+    $("verdictSub").textContent = "Green & burgundy South African label";
+    $("tagline").hidden = false;
+    $("note").textContent = "We check the label design. If anything about the product seems off, let us know.";
+    $("result").className = "sheet clear";
+    $("result").querySelector(".card").className = "card slim";
+    $("reportBtn").className = "link-btn";
+    $("reportBtn").textContent = "Something looks off? Report it";
+    $("againBtn").hidden = true;
+    $("doneBtn").hidden = false;
+    $("result").hidden = false;
+  });
 }
 
 // Snapshot of the camera image (what the shopper sees), for the report.
