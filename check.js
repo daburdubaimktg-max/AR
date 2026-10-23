@@ -90,7 +90,7 @@ async function start() {
       ? "Camera unavailable. Allow camera access and try again."
       : "Camera needs HTTPS. Open this page over https://.");
   }
-  import("./check-fx.js").then(({ ComeAlive }) => { fx = new ComeAlive(); }).catch((err) => console.warn(err));
+  import("./check-fx.js?v=202610230756").then(({ ComeAlive }) => { fx = new ComeAlive(); }).catch((err) => console.warn(err));
   $("setup").hidden = true;
   if (new URLSearchParams(location.search).has("debug")) window.check = { read: () => analyse(readFrame()), rows: () => rowCodes(readFrame()) };
   scan();
