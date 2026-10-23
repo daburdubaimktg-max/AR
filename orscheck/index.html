@@ -60,6 +60,67 @@
     </div>
   </section>
 
+  <section id="reportSheet" class="sheet" hidden>
+    <form id="reportForm" class="card report" novalidate>
+      <div class="report-head">
+        <h2>🚩 Report a product</h2>
+        <button type="button" id="reportClose" class="x" aria-label="Close">✕</button>
+      </div>
+      <p id="reportWhat" class="flag"></p>
+
+      <p class="field-label">Photos</p>
+      <div id="photos" class="photos">
+        <label class="add-photo">
+          <input id="photoInput" type="file" accept="image/*" capture="environment" multiple hidden />
+          <span>＋</span><small>Back / receipt</small>
+        </label>
+      </div>
+
+      <label class="field"><span>Where did you buy it? *</span>
+        <input id="rStore" required placeholder="Store or market name" autocomplete="off" /></label>
+      <div class="two">
+        <label class="field"><span>Town / city *</span>
+          <input id="rTown" required placeholder="e.g. Soweto" autocomplete="address-level2" /></label>
+        <label class="field"><span>Province</span>
+          <select id="rProvince">
+            <option value="">Choose</option>
+            <option>Gauteng</option><option>KwaZulu-Natal</option><option>Western Cape</option>
+            <option>Eastern Cape</option><option>Limpopo</option><option>Mpumalanga</option>
+            <option>North West</option><option>Free State</option><option>Northern Cape</option>
+          </select></label>
+      </div>
+      <div class="two">
+        <label class="field"><span>Price paid</span>
+          <span class="prefix"><b>R</b><input id="rPrice" inputmode="decimal" placeholder="0.00" /></span></label>
+        <label class="field"><span>Date bought</span>
+          <input id="rDate" type="date" /></label>
+      </div>
+      <label class="field"><span>Phone or email (optional)</span>
+        <input id="rContact" placeholder="So we can follow up" autocomplete="tel" /></label>
+      <p id="reportError" class="form-error" hidden>Please add where you bought it and the town.</p>
+      <button id="sendBtn" class="primary" type="submit">Send report</button>
+      <p class="note center">Your report goes to ORS consumer care. We only use it to track fakes.</p>
+    </form>
+  </section>
+
+  <section id="thanks" class="sheet" hidden>
+    <div class="card center">
+      <div class="thanks-icon">🙏</div>
+      <h2>Thank you for protecting the crown</h2>
+      <p class="sub">Your report reference</p>
+      <p id="refNo" class="ref"></p>
+      <ol class="next">
+        <li>Our team checks the photos and store details.</li>
+        <li>We follow up with the store and the authorities.</li>
+        <li>If you left a contact, we may reach out.</li>
+      </ol>
+      <div class="col">
+        <button id="thanksScan" class="primary">Scan another</button>
+        <button id="thanksGuide" class="link-btn">How to spot a fake</button>
+      </div>
+    </div>
+  </section>
+
   <section id="guide" class="sheet" hidden>
     <div class="card">
       <h2>How to spot genuine ORS</h2>

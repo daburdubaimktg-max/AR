@@ -50,7 +50,7 @@ Fit the whole can in the frame. The page reads the label's colour layout from to
 | **Red band in the middle**, lime below (old layout) | ! Old-style label: check for black "OLIVE OIL", bold name, typos, MOMOLEMO |
 | Nothing for 15 s | ? Couldn't read, with tips |
 
-Brightness is judged relative to the label's own lime green, so dim light and warm or cool phone cameras give the same answer. Each result has a **Report** button that shares a camera snapshot, or opens an email.
+Brightness is judged relative to the label's own lime green, so dim light and warm or cool phone cameras give the same answer. Each result has a **Report** button. It opens an in-page form with the scanned-label photo (attached automatically), more photos (back of pack, receipt), store, town, province, price, date and an optional contact. **Send report** opens the phone's share sheet (WhatsApp or email) with the photos and details, or an email if sharing isn't available. Then a thank-you screen shows a reference like `ORS-ZA-261023-5XGP`. Without a backend, reports arrive by email or WhatsApp; connect a form endpoint or CRM to collect them centrally.
 
 **Limits:** this checks the label *design*, not the product. A fake printed with the genuine green & burgundy artwork will pass, so the genuine card keeps a small "Something looks off? Report it" link. For real authentication, add serialised QR codes, holograms or NFC on pack.
 

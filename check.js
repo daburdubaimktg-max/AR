@@ -304,24 +304,111 @@ function capture() {
   return new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
 }
 
-async function report() {
+// ---- report a product ----
+
+const RESULT_TEXT = {
+  genuine: "Matched the genuine SA label, but something looked off",
+  fake: "Known counterfeit design (pink badge, dark-green label)",
+  notza: "Not the genuine SA label (no burgundy band)",
+  old: "Old-style label",
+  unknown: "Label couldn\u2019t be read",
+};
+let extraPhotos = [];
+
+function photoThumb(blob, caption, onRemove) {
+  const d = document.createElement("div");
+  d.className = "thumb";
+  const img = document.createElement("img");
+  img.src = URL.createObjectURL(blob);
+  const cap = document.createElement("small");
+  cap.textContent = caption;
+  d.append(img, cap);
+  if (onRemove) {
+    const x = document.createElement("button");
+    x.type = "button";
+    x.textContent = "\u2715";
+    x.setAttribute("aria-label", "Remove photo");
+    x.onclick = () => { d.remove(); onRemove(); };
+    d.append(x);
+  }
+  return d;
+}
+
+function report() {
   const r = lastResult || { kind: "unknown" };
-  const what = "ORS Olive Oil product";
-  const result = { genuine: "matched the genuine SA label, but something looked off",
-    fake: "known counterfeit design (pink badge, dark-green label)", notza: "not the genuine SA label (no burgundy band)",
-    old: "old-style label", unknown: "label couldn't be read" }[r.kind];
-  const body = `Product: ${what}\nScan result: ${result}\n\nWhere I bought it (store, town):\nPrice paid:\nDate:\n\nPlease attach a photo of the front and back of the pack.`;
-  const file = r.photo && new File([r.photo], "ors-label.jpg", { type: "image/jpeg" });
-  if (file && navigator.canShare?.({ files: [file] })) {
+  const flag = $("reportWhat");
+  flag.textContent = `Scan result: ${RESULT_TEXT[r.kind]}`;
+  flag.className = r.kind === "genuine" ? "flag ok" : "flag";
+  const box = $("photos");
+  box.querySelectorAll(".thumb").forEach((t) => t.remove());
+  extraPhotos = [];
+  if (r.photo) box.prepend(photoThumb(r.photo, "Scanned label"));
+  if (!$("rDate").value) $("rDate").value = new Date().toISOString().slice(0, 10);
+  $("reportError").hidden = true;
+  $("result").hidden = true;
+  $("reportSheet").hidden = false;
+}
+
+$("photoInput").onchange = (e) => {
+  for (const f of e.target.files) {
+    extraPhotos.push(f);
+    $("photos").insertBefore(photoThumb(f, "Your photo", () => {
+      extraPhotos = extraPhotos.filter((p) => p !== f);
+    }), $("photos").querySelector(".add-photo"));
+  }
+  e.target.value = "";
+};
+for (const id of ["rStore", "rTown"]) {
+  $(id).addEventListener("input", () => {
+    $(id).classList.remove("invalid");
+    if ($("rStore").value.trim() && $("rTown").value.trim()) $("reportError").hidden = true;
+  });
+}
+$("reportClose").onclick = () => { $("reportSheet").hidden = true; $("result").hidden = false; };
+$("thanksScan").onclick = () => { $("thanks").hidden = true; scan(); };
+$("thanksGuide").onclick = () => { $("guide").hidden = false; };
+
+$("reportForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const need = [$("rStore"), $("rTown")];
+  need.forEach((el) => el.classList.toggle("invalid", !el.value.trim()));
+  if (need.some((el) => !el.value.trim())) { $("reportError").hidden = false; return; }
+  $("reportError").hidden = true;
+
+  const r = lastResult || { kind: "unknown" };
+  const ref = `ORS-ZA-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const v = (id) => $(id).value.trim();
+  const body = [
+    `Reference: ${ref}`,
+    `Scan result: ${RESULT_TEXT[r.kind]}`,
+    `Bought at: ${v("rStore")}, ${v("rTown")}${v("rProvince") ? `, ${v("rProvince")}` : ""}`,
+    `Price: ${v("rPrice") ? `R ${v("rPrice")}` : "-"}`,
+    `Date bought: ${v("rDate") || "-"}`,
+    `Contact: ${v("rContact") || "-"}`,
+  ].join("\n");
+  const files = [
+    ...(r.photo ? [new File([r.photo], `${ref}-label.jpg`, { type: "image/jpeg" })] : []),
+    ...extraPhotos,
+  ];
+
+  let sent = false;
+  if (navigator.canShare?.({ files, text: body }) && files.length) {
     try {
-      await navigator.share({ files: [file], title: REPORT.subject, text: `${REPORT.subject}\nSend to: ${REPORT.email}\n\n${body}` });
-      return;
+      await navigator.share({ files, title: REPORT.subject, text: `${REPORT.subject}\nSend to: ${REPORT.email}\n\n${body}` });
+      sent = true;
     } catch (err) {
-      if (err.name === "AbortError") return;
+      if (err.name === "AbortError") return; // they closed the share sheet; stay on the form
     }
   }
-  location.href = `mailto:${REPORT.email}?subject=${encodeURIComponent(REPORT.subject)}&body=${encodeURIComponent(body)}`;
-}
+  if (!sent) {
+    location.href = `mailto:${REPORT.email}?subject=${encodeURIComponent(`${REPORT.subject} ${ref}`)}&body=${encodeURIComponent(`${body}\n\n(Please attach your photos.)`)}`;
+  }
+  $("refNo").textContent = ref;
+  $("reportSheet").hidden = true;
+  $("thanks").hidden = false;
+  sfx.chime();
+  $("reportForm").reset();
+};
 
 function showError(msg) {
   $("progress").hidden = true;
