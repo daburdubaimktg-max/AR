@@ -40,22 +40,21 @@ Add `?debug` to the URL to get `window.reveal`, `window.game` and `window.match`
 
 ## Is my ORS real? (`orscheck/`): front-label check, South Africa
 
-Scan the front label and the page says which design it matches:
+Fit the whole can in the frame. The page reads the label's colour layout from top to bottom, on the phone, about 10 times a second:
 
-- **Matches the genuine design**: the South African green & burgundy Nourishing Sheen Spray 275 ml. The shopper then ticks a short checklist (275 ml, "Original Formula", burgundy band, seal, clean print).
-- **Known counterfeit design**: the 420 ml "infused with Coconut Oil" knock-off (pink ORS badge, "420ml 260g (11.7 oz)").
-- **Couldn't match**: anything else after 15 s, with tips and the "How to spot a fake" guide.
+| Layout | Result |
+|---|---|
+| Lime green, then a **burgundy band at the bottom** | ✓ Matches the genuine SA label, plus a tick-list of details |
+| Lime green with a **pink ORS badge**, dark-green bottom band | ! Known counterfeit design (the 420 ml coconut knock-off) |
+| Lime green, **dark-green** bottom band, no pink | ! Not the genuine SA label |
+| **Red band in the middle**, lime below (old layout) | ! Old-style label: check for black "OLIVE OIL", bold name, typos, MOMOLEMO |
+| Nothing for 15 s | ? Couldn't read, with tips |
 
-Every result has a **Report** button that shares the camera snapshot (or opens an email) with store, price and date prompts.
+Brightness is judged relative to the label's own lime green, so dim light and warm or cool phone cameras give the same answer. Each result has a **Report** button that shares a camera snapshot, or opens an email.
 
-Targets are only the *lower* part of each label, the area where genuine and fake differ. The ORS logo alone must not count as "genuine", because fakes copy it.
+**Limits:** this checks the label *design*, not the product. A fake printed with the genuine green & burgundy artwork will pass, which is why the genuine result asks for a detail check. For real authentication, add serialised QR codes, holograms or NFC on pack.
 
-**Limits:** this checks the label design, not the product. An exact copy of the genuine artwork will match "genuine". For real authentication, add serialised QR codes, holograms or NFC on pack.
-
-**Before launch:**
-- Replace the reference crops (taken from a social-media screenshot) with flat print artwork for each SA SKU, plus photos of known fakes.
-- Recompile with `tools/compile_labels.mjs` and add matching entries to `LABELS` in `check.js`.
-- Set `REPORT.email` in `check.js` to the South Africa consumer-care contact. It is currently the address printed on the US can.
+**Before launch:** set `REPORT.email` in `check.js` to the South Africa consumer-care contact (it is currently the address printed on the US can), and test on real stock.
 
 ## Meet Ollie (`ollie/`), an exploration
 
